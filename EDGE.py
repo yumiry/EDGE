@@ -26,7 +26,7 @@ plt.rc('figure', autolayout=True)
 # Folders where model output data and observational data can be found:
 datapath        = '/Users/danfeldman/Orion_Research/Orion_Research/CVSO_4Objs/Models/CVSO109PT2/'
 #figurepath      = '/Users/danfeldman/Orion_Research/Orion_Research/CVSO_4Objs/Look_SEDs/CVSO90PT/'
-figurepath      = '/Users/danfeldman/Orion_Research/Orion_Research/CVSO_4Objs/Models/Full_CVSO_Grid/CVSO90_Test/'
+figurepath      = '/Users/danfeldman/Orion_Research/Orion_Research/CVSO_4Objs/Models/CVSO107_2/'
 #deredpath       = '/Users/danfeldman/Orion_Research/Dereddening_Codes/starparam/'           # De-redden magnitude path
 
 #---------------------------------------------INDEPENDENT FUNCTIONS----------------------------------------------
@@ -853,8 +853,10 @@ def model_rchi2(objname, model, path):
     
     # The tough part -- figuring out the proper weights. Let's take a stab:
     weights     = np.ones(len(wavelength))      # Start with all ones
-    weights[wavelength <= 8.5] = 25             # Some weight to early phot/spec data
-    weights[wavelength >= 22]  = 60             # More weight to outer piece of SED
+    #weights[wavelength <= 8.5] = 25             # Some weight to early phot/spec data
+    #weights[wavelength >= 22]  = 60             # More weight to outer piece of SED
+    weights[wavelength <= 22]  = 75
+    weights[wavelength <= 1] = 1
     
     # Calculate the reduced chi-squared value for the model:
     chi_arr     = (flux - modelFlux) * weights / flux
@@ -978,7 +980,7 @@ class TTS_Model(object):
             
         HDUlist.close()                                                 # Closes the fits file, since we no longer need it
         
-    def calc_total(self, phot=1, wall=1, disk=1, owall=0, dust=0, verbose=1):
+    def calc_total(self, phot=1, wall=1, disk=1, owall=0, dust=0, verbose=1, dust_high=0):
         """
         (By Dan)
         Calculates the total flux for our object (likely to be used for plotting and/or analysis). Once calculated, it
@@ -1013,14 +1015,14 @@ class TTS_Model(object):
             totFlux     = totFlux + self.data['owall']
         if dust != 0:
             try:
-                dustNum = numCheck(dust)
+                dustNum = numCheck(dust, high=dust_high)
             except:
                 raise ValueError('CALC_TOTAL: Error! Dust input not a valid integer')
                 
             dustHDU     = fits.open(self.dpath+self.name+'_OTD_'+dustNum+'.fits')
             if verbose:
                 print 'CALC_TOTAL: Adding optically thin dust component to total flux.'
-            self.data['dust']   = dustHDU[0].data[:,1]
+            self.data['dust']   = dustHDU[0].data[1,:]
             totFlux     = totFlux + self.data['dust']
         
         # Add the total flux array to the data dictionary attribute:
