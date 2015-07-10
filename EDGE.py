@@ -931,6 +931,12 @@ class TTS_Model(object):
         HDUlist         = fits.open(fitsname)                           # Opens the fits file for use
         header          = HDUlist[0].header                             # Stores the header in this variable
         
+        # The new Python version of collate flips array indices, so must identify which collate.py was used:
+        if len(HDUlist[0].data['wl']) == 4:
+            new         = 1
+        else:
+            new         = 0
+        
         # Initialize meta-data attributes for this object:
         self.name       = name
         self.jobn       = jobn
@@ -963,8 +969,12 @@ class TTS_Model(object):
         # iWall is the flux from the inner wall. Disk is the emission from the angle file.
         if headonly == 0:
             if full_trans:
-                self.data   = {'wl': HDUlist[0].data[:,0], 'phot': HDUlist[0].data[:,1], 'iwall': HDUlist[0].data[:,2], \
-                               'disk': HDUlist[0].data[:,3]}
+                if new:
+                    self.data   = {'wl': HDUlist[0].data[0,:], 'phot': HDUlist[0].data[1,:], 'iwall': HDUlist[0].data[2,:], \
+                                   'disk': HDUlist[0].data[3,:]}
+                else:
+                    self.data   = {'wl': HDUlist[0].data[:,0], 'phot': HDUlist[0].data[:,1], 'iwall': HDUlist[0].data[:,2], \
+                                   'disk': HDUlist[0].data[:,3]}
             else:
                 # If a pre-transitional disk, have to match the job to the inner-wall job.
                 z           = raw_input('What altinh value are you using for the inner wall? ')
@@ -975,8 +985,12 @@ class TTS_Model(object):
                     raise IOError('__INIT__: Multiple inner wall models match. Do not know which one to pick.')
                 else:
                     outfits = fits.open(dpath + name + '_' + match[0] + '.fits')
-                    self.data   = {'wl': HDUlist[0].data[:,0], 'phot': HDUlist[0].data[:,1], 'owall': HDUlist[0].data[:,2], \
-                                   'disk': HDUlist[0].data[:,3], 'iwall': outfits[0].data[:,2]}
+                    if new:
+                        self.data   = {'wl': HDUlist[0].data[0,:], 'phot': HDUlist[0].data[1,:], 'owall': HDUlist[0].data[2,:], \
+                                       'disk': HDUlist[0].data[3,:], 'iwall': outfits[0].data[2,:]}
+                    else:
+                        self.data   = {'wl': HDUlist[0].data[:,0], 'phot': HDUlist[0].data[:,1], 'owall': HDUlist[0].data[:,2], \
+                                       'disk': HDUlist[0].data[:,3], 'iwall': outfits[0].data[:,2]}
             
         HDUlist.close()                                                 # Closes the fits file, since we no longer need it
         
