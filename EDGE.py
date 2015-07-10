@@ -932,7 +932,7 @@ class TTS_Model(object):
         header          = HDUlist[0].header                             # Stores the header in this variable
         
         # The new Python version of collate flips array indices, so must identify which collate.py was used:
-        if len(HDUlist[0].data['wl']) == 4:
+        if len(HDUlist[0].data[:,0]) == 4:
             new         = 1
         else:
             new         = 0
