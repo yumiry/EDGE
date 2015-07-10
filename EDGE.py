@@ -949,12 +949,12 @@ class TTS_Model(object):
         self.altinh     = header['ALTINH']
         self.wlcut_an   = header['WLCUT_AN']
         self.wlcut_sc   = header['WLCUT_SC']
-        self.nsilcomp   = header['NSILCOMP']
+        self.nsilcomp   = header['NSILC']
         self.siltotab   = header['SILTOTAB']
         self.amorf_ol   = header['AMORF_OL']
         self.amorf_py   = header['AMORF_PY']
-        self.forsteri   = header['FORSTERI']
-        self.enstatit   = header['ENSTATIT']
+        self.forsteri   = header['FRAC_FOR']
+        self.enstatit   = header['FRAC_ENS']
         self.rin        = header['RIN']
         self.dpath      = dpath
         
