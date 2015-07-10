@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Created by Dan Feldman and Connor Robinson for analyzing data from Espaillat Group research models.
-# Last updated: 6/01/15 by Dan
+# Last updated: 7/10/15 by Dan
 
 #-------------------------------------------IMPORT RELEVANT MODELS-------------------------------------------
 import numpy as np
@@ -955,12 +955,12 @@ class TTS_Model(object):
         self.altinh     = header['ALTINH']
         self.wlcut_an   = header['WLCUT_AN']
         self.wlcut_sc   = header['WLCUT_SC']
-        self.nsilcomp   = header['NSILC']
+        self.nsilcomp   = header['NSILCOMP']
         self.siltotab   = header['SILTOTAB']
         self.amorf_ol   = header['AMORF_OL']
         self.amorf_py   = header['AMORF_PY']
-        self.forsteri   = header['FRAC_FOR']
-        self.enstatit   = header['FRAC_ENS']
+        self.forsteri   = header['FORSTERI']
+        self.enstatit   = header['ENSTATIT']
         self.rin        = header['RIN']
         self.dpath      = dpath
         

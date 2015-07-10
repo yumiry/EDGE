@@ -194,10 +194,10 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0):
         sparam[sparam.index('AMORPFRAC_PYROXENE')] = 'AMORF_PY'
         sparam[sparam.index('WLCUT_ANGLE')] = 'WLCUT_AN'
         sparam[sparam.index('WLCUT_SCATT')] = 'WLCUT_SC'
-        sparam[sparam.index('NSILCOMPOUNDS')] = 'NSILC'
+        sparam[sparam.index('NSILCOMPOUNDS')] = 'NSILCOMP'
         sparam[sparam.index('SILTOTABUN')] = 'SILTOTAB'
-        sparam[sparam.index('FORSTERITE_FRAC')] = 'FRAC_FOR'
-        sparam[sparam.index('ENSTATITE_FRAC')] = 'FRAC_ENS'
+        sparam[sparam.index('FORSTERITE_FRAC')] = 'FORSTERI'
+        sparam[sparam.index('ENSTATITE_FRAC')] = 'ENSTATIT'
         
         #Reduce the amount of Spanish here
         sparam[sparam.index('DISTANCIA')] = 'DISTANCE'
