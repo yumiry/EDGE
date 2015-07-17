@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Created by Dan Feldman and Connor Robinson for analyzing data from Espaillat Group research models.
-# Last updated: 7/10/15 by Dan
+# Last updated: 7/17/15 by Dan
 
 #-------------------------------------------IMPORT RELEVANT MODELS-------------------------------------------
 import numpy as np
@@ -26,7 +26,7 @@ plt.rc('figure', autolayout=True)
 # Folders where model output data and observational data can be found:
 datapath        = '/Users/danfeldman/Orion_Research/Orion_Research/CVSO_4Objs/Models/CVSO109PT2/'
 #figurepath      = '/Users/danfeldman/Orion_Research/Orion_Research/CVSO_4Objs/Look_SEDs/CVSO90PT/'
-figurepath      = '/Users/danfeldman/Orion_Research/Orion_Research/CVSO_4Objs/Models/CVSO107_2/'
+figurepath      = '/Users/danfeldman/Orion_Research/Orion_Research/CVSO_4Objs/Models/Full_CVSO_Grid/CVSO58_sil/'
 #deredpath       = '/Users/danfeldman/Orion_Research/Dereddening_Codes/starparam/'           # De-redden magnitude path
 
 #---------------------------------------------INDEPENDENT FUNCTIONS----------------------------------------------
@@ -51,6 +51,68 @@ def filelist(path):
     for index, val in enumerate(hid):                           # Pop out tagged entries
         flist.pop(val - index)
     return flist
+
+def deci_to_time(ra=None, dec=None):
+    """
+    (By Dan)
+    
+    Converts decimal values of ra and dec into arc time coordinates.
+    
+    INPUTS
+    ra: The float value of right ascension.
+    dec: The float value of declination.
+    
+    OUTPUTS
+    new_ra: The converted RA. If no ra supplied, returns -1
+    new_dec: The converted dec. If no dec supplied, returns -1
+    """
+    
+    new_ra  = -1
+    new_dec = -1
+    
+    if ra is not None:
+        if type(ra) != float:
+            raise ValueError('DECI_TO_TIME: RA is not a float. Cannot convert.')  
+          
+        # First, we find the number of hours:
+        hours    = ra / 15.0
+        hoursInt = int(hours)
+        hours    = hours - hoursInt
+        
+        # Next, we want minutes:
+        minutes  = hours * 60.0
+        minInt   = int(minutes)
+        minutes  = minutes - minInt
+        
+        # Lastly, seconds:
+        seconds  = minutes * 60.0
+        new_ra   = '{0:02d} {1:02d} {2:.2f}'.format(hoursInt, minInt, seconds) 
+    
+    if dec is not None:
+        if type(dec) != float:
+            raise ValueError('DECI_TO_TIME: Dec is not a float. Cannot convert.')
+        
+        # For dec, have to check and store the sign:
+        if dec < 0.0:
+            sign = '-'
+        else:
+            sign = '+'
+        dec      = abs(dec)
+        
+        # First, we find the number of degrees:
+        degInt   = int(dec)
+        deg      = dec - degInt
+        
+        # Next, we want minutes:
+        minutes  = deg * 60.0
+        minInt   = int(minutes)
+        minutes  = minutes - minInt
+        
+        # Lastly, seconds:
+        seconds  = minutes * 60.0
+        new_dec  = '{0:s}{1:02d} {2:02d} {3:.2f}'.format(sign, degInt, minInt, seconds)
+    
+    return new_ra, new_dec
 
 def convertFreq(value):
     """
@@ -346,7 +408,6 @@ def searchJobs(target, dpath=datapath, **kwargs):
     OUTPUTS
     job_matches: A numpy array containing all the jobs that matched the kwargs. Can be an empty array, single value array, or multivalued array. Will
                  contain matches by their integer number.
-    
     """
     
     job_matches         = np.array([], dtype='string')
@@ -393,7 +454,6 @@ def loadPickle(name, picklepath=datapath, num=None):
     
     OUTPUT
     pickle: The object containing the data loaded in from the pickle.
-    
     """
     if num == None:
         # Check if there is more than one
@@ -442,7 +502,6 @@ def job_file_create(jobnum, path, high=0, **kwargs):
     A job file with the name jobXXX, where XXX is the three-string number from 001 - 999. If
     high == True, the output name will be jobXXXX, where XXXX is a four-string number from 1000-9999.
     No formal outputs are returned by this function; the file is created in the path directory.
-    
     """
     
     # First, let's read in the sample job file so we have a template:
@@ -826,7 +885,6 @@ def model_rchi2(objname, model, path):
     
     OUTPUT
     rchi_sq: The value for the reduced chi-squared test on the model.
-    
     """
     
     # Read in observations:
@@ -853,10 +911,11 @@ def model_rchi2(objname, model, path):
     
     # The tough part -- figuring out the proper weights. Let's take a stab:
     weights     = np.ones(len(wavelength))      # Start with all ones
-    #weights[wavelength <= 8.5] = 25             # Some weight to early phot/spec data
-    #weights[wavelength >= 22]  = 60             # More weight to outer piece of SED
-    weights[wavelength <= 22]  = 75
-    weights[wavelength <= 1] = 1
+    weights[wavelength <= 8.5] = 25             # Some weight to early phot/spec data
+    weights[wavelength >= 22]  = 60             # More weight to outer piece of SED
+    
+    #weights[wavelength <= 22]  = 75            # These weights good for opt. thin dust comparisons
+    #weights[wavelength <= 1] = 1
     
     # Calculate the reduced chi-squared value for the model:
     chi_arr     = (flux - modelFlux) * weights / flux
@@ -902,7 +961,6 @@ class TTS_Model(object):
     __init__: initializes an instance of the class, and loads in the relevant data.
     calc_total: Calculates the "total" (combined) flux based on which components you want, then loads it into
                 the data attribute under the key 'total'.
-    
     """
     
     def __init__(self, name, jobn, dpath=datapath, full_trans=1, high=0, headonly=0):
@@ -916,7 +974,6 @@ class TTS_Model(object):
         full_trans: BOOLEAN -- if 1 (True) will load data as a full or transitional disk. If 0 (False), as a pre-trans. disk.
         high: BOOLEAN -- if 1 (True), the model file being read in has a 4-digit number string rather than 3-digit string.
         headonly: BOOLEAN -- if 1 (True) will only load the header metadata into the object, and will not load in the model data.
-        
         """
         
         # First, sanity check:
@@ -1006,7 +1063,6 @@ class TTS_Model(object):
         disk: BOOLEAN -- if 1 (True), will add disk component to the combined model.
         owall: BOOLEAN -- if 1 (True), will add outer wall component to the combined model (relevant for pre-trans only).
         dust: INTEGER -- Must correspond to an opt. thin dust model number linked to a fits file in datapath directory.
-        
         """
         
         # Add the components to the total flux, checking each component along the way:
@@ -1063,7 +1119,6 @@ class TTS_Obs(object):
     add_spectra: Adds an entry (or replaces an entry) in the spectra attribute dictionary.
     add_photometry: Adds an entry (or replaces an entry) in the photometry attribute dictionary.
     SPPickle: Saves the object as a pickle to be reloaded later. This will not work if you've reloaded the module before saving.
-    
     """
     
     def __init__(self, name):
@@ -1073,7 +1128,6 @@ class TTS_Obs(object):
         
         INPUTS
         name: The name of the target for which the data represents.
-        
         """
         # Initalize attributes as empty. Can add to the data later.
         self.name       = name
@@ -1091,7 +1145,6 @@ class TTS_Obs(object):
         wlarr: The wavelenth array of the data. Should be in microns. Note: this is not checked.
         fluxarr: The flux array of the data. Should be in erg s-1 cm-2. Note: this is not checked.
         errors: (optional) The array of flux errors. Should be in erg s-1 cm-2. If None (default), will not add.
-        
         """
         
         # Check if the telescope data already exists in the data file:
@@ -1132,7 +1185,6 @@ class TTS_Obs(object):
         fluxarr: The flux array corresponding to the data. Should be in erg s-1 cm-2. Note: this is not checked.
         errors: (optional) The array of flux errors. Should be in erg s-1 cm-2. If None (default), will not add.
         ulim: BOOLEAN -- whether or not this photometric data is or is not an upper limit.
-        
         """
         
         # Check if the telescope data already exists in the data file:
@@ -1176,7 +1228,6 @@ class TTS_Obs(object):
         
         INPUTS
         picklepath: The path where you will save the pickle. I recommend datapath for simplicity.
-        
         """
         # Check whether or not the pickle already exists:
         pathlist        = filelist(picklepath)
