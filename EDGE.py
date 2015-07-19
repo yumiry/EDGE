@@ -518,10 +518,12 @@ def job_file_create(jobnum, path, high=0, **kwargs):
     # Now we run through the list of changes desired and change them:
     # If we want to change the maximum grain size (amaxs):
     if 'amaxs' in kwargs:
+        amaxVal = kwargs['amaxs']
+        del kwargs['amaxs']
         # amaxs is a commented out switch, so we need to know the desired size:
-        if kwargs['amaxs'] == 0.25:
+        if amaxVal == 0.25:
             pass
-        elif kwargs['amaxs'] == 0.05:
+        elif amaxVal == 0.05:
             if fullText[37][0] == '#' and fullText[38][0] == '#':
                 fullText[37] = fullText[37][1:]     # Remove the pound at 0.05
                 fullText[38] = fullText[38][1:]
@@ -529,7 +531,7 @@ def job_file_create(jobnum, path, high=0, **kwargs):
                 fullText[44] = '#' + fullText[44]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at amax=0.05')
-        elif kwargs['amaxs'] == 0.1:
+        elif amaxVal == 0.1:
             if fullText[40][0] == '#' and fullText[41][0] == '#':
                 fullText[40] = fullText[40][1:]     # Remove the pound at 0.1
                 fullText[41] = fullText[41][1:]
@@ -537,7 +539,7 @@ def job_file_create(jobnum, path, high=0, **kwargs):
                 fullText[44] = '#' + fullText[44]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at amax=0.1')
-        elif kwargs['amaxs'] == 1.0:
+        elif amaxVal == 1.0:
             if fullText[46][0] == '#' and fullText[47][0] == '#':
                 fullText[46] = fullText[46][1:]     # Remove the pound at 1.0
                 fullText[47] = fullText[47][1:]
@@ -545,7 +547,7 @@ def job_file_create(jobnum, path, high=0, **kwargs):
                 fullText[44] = '#' + fullText[44]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at amax=1.0')
-        elif kwargs['amaxs'] == 2.0:
+        elif amaxVal == 2.0:
             if fullText[49][0] == '#' and fullText[50][0] == '#':
                 fullText[49] = fullText[49][1:]     # Remove the pound at 2.0
                 fullText[50] = fullText[50][1:]
@@ -553,7 +555,7 @@ def job_file_create(jobnum, path, high=0, **kwargs):
                 fullText[44] = '#' + fullText[44]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at amax=2.0')
-        elif kwargs['amaxs'] == 3.0:
+        elif amaxVal == 3.0:
             if fullText[52][0] == '#' and fullText[53][0] == '#':
                 fullText[52] = fullText[52][1:]     # Remove the pound at 3.0
                 fullText[53] = fullText[53][1:]
@@ -561,7 +563,7 @@ def job_file_create(jobnum, path, high=0, **kwargs):
                 fullText[44] = '#' + fullText[44]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at amax=3.0')
-        elif kwargs['amaxs'] == 4.0:
+        elif amaxVal == 4.0:
             if fullText[55][0] == '#' and fullText[56][0] == '#':
                 fullText[55] = fullText[55][1:]     # Remove the pound at 4.0
                 fullText[56] = fullText[56][1:]
@@ -569,7 +571,7 @@ def job_file_create(jobnum, path, high=0, **kwargs):
                 fullText[44] = '#' + fullText[44]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at amax=4.0')
-        elif kwargs['amaxs'] == 5.0:
+        elif amaxVal == 5.0:
             if fullText[58][0] == '#' and fullText[59][0] == '#':
                 fullText[58] = fullText[58][1:]     # Remove the pound at 5.0
                 fullText[59] = fullText[59][1:]
@@ -577,7 +579,7 @@ def job_file_create(jobnum, path, high=0, **kwargs):
                 fullText[44] = '#' + fullText[44]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at amax=5.0')
-        elif kwargs['amaxs'] == 10.0:
+        elif amaxVal == 10.0:
             if fullText[61][0] == '#' and fullText[62][0] == '#':
                 fullText[61] = fullText[61][1:]     # Remove the pound at 10.0
                 fullText[62] = fullText[62][1:]
@@ -585,7 +587,7 @@ def job_file_create(jobnum, path, high=0, **kwargs):
                 fullText[44] = '#' + fullText[44]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at amax=10.0')
-        elif kwargs['amaxs'] == 100.0:
+        elif amaxVal == 100.0:
             if fullText[64][0] == '#' and fullText[65][0] == '#':
                 fullText[64] = fullText[64][1:]     # Remove the pound at 100.0
                 fullText[65] = fullText[65][1:]
