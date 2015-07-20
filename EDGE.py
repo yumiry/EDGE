@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Created by Dan Feldman and Connor Robinson for analyzing data from Espaillat Group research models.
-# Last updated: 7/17/15 by Dan
+# Last updated: 7/19/15 by Dan
 
 #-------------------------------------------IMPORT RELEVANT MODELS-------------------------------------------
 import numpy as np
@@ -496,7 +496,7 @@ def job_file_create(jobnum, path, high=0, **kwargs):
         altinh - the height of the inner wall in scale heights
         
         Some can still be included, such as dust grain compositions. They just aren't
-        currently supported.
+        currently supported. If any supplied kwargs are unused, it will print at the end.
     
     OUTPUT
     A job file with the name jobXXX, where XXX is the three-string number from 001 - 999. If
@@ -600,10 +600,12 @@ def job_file_create(jobnum, path, high=0, **kwargs):
     
     # Now, we examine the epsilon parameter if a value provided:
     if 'epsilon' in kwargs:
+        epsVal = kwargs['epsilon']
+        del kwargs['epsilon']
         # Epsilon is a commented out switch, so we need the desired parameter:
-        if kwargs['epsilon'] == 0.0001:
+        if epsVal == 0.0001:
             pass        # Default value is 0.0001
-        elif kwargs['epsilon'] == 0.001:
+        elif epsVal == 0.001:
             if fullText[74][0] == '#' and fullText[75][0] == '#':
                 fullText[74] = fullText[74][1:]     # Remove the pound at 0.001
                 fullText[75] = fullText[75][1:]
@@ -611,7 +613,7 @@ def job_file_create(jobnum, path, high=0, **kwargs):
                 fullText[72] = '#' + fullText[72]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at eps=0.001')
-        elif kwargs['epsilon'] == 0.01:
+        elif epsVal == 0.01:
             if fullText[77][0] == '#' and fullText[78][0] == '#':
                 fullText[77] = fullText[77][1:]     # Remove the pound at 0.01
                 fullText[78] = fullText[78][1:]
@@ -619,7 +621,7 @@ def job_file_create(jobnum, path, high=0, **kwargs):
                 fullText[72] = '#' + fullText[72]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at eps=0.01')
-        elif kwargs['epsilon'] == 0.1:
+        elif epsVal == 0.1:
             if fullText[80][0] == '#' and fullText[81][0] == '#':
                 fullText[80] = fullText[80][1:]     # Remove the pound at 0.1
                 fullText[81] = fullText[81][1:]
@@ -627,7 +629,7 @@ def job_file_create(jobnum, path, high=0, **kwargs):
                 fullText[72] = '#' + fullText[72]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at eps=0.1')
-        elif kwargs['epsilon'] == 0.2:
+        elif epsVal == 0.2:
             if fullText[83][0] == '#' and fullText[84][0] == '#':
                 fullText[83] = fullText[83][1:]     # Remove the pound at 0.2
                 fullText[84] = fullText[84][1:]
@@ -635,7 +637,7 @@ def job_file_create(jobnum, path, high=0, **kwargs):
                 fullText[72] = '#' + fullText[72]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at eps=0.2')
-        elif kwargs['epsilon'] == 0.5:
+        elif epsVal == 0.5:
             if fullText[86][0] == '#' and fullText[87][0] == '#':
                 fullText[86] = fullText[86][1:]     # Remove the pound at 0.5
                 fullText[87] = fullText[87][1:]
@@ -643,7 +645,7 @@ def job_file_create(jobnum, path, high=0, **kwargs):
                 fullText[72] = '#' + fullText[72]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at eps=0.5')
-        elif kwargs['epsilon'] == 1.0:
+        elif epsVal == 1.0:
             if fullText[89][0] == '#' and fullText[90][0] == '#':
                 fullText[89] = fullText[89][1:]     # Remove the pound at 1.0
                 fullText[90] = fullText[90][1:]
@@ -656,40 +658,53 @@ def job_file_create(jobnum, path, high=0, **kwargs):
     
     # Now we can cycle through the easier changes desired:
     if 'mstar' in kwargs:                           # Stellar mass parameter
-        fullText[14] = (fullText[14][:11] + str(kwargs['mstar']) + 
-                        fullText[14][-11:])
+        mstarVal = kwargs['mstar']
+        del kwargs['mstar']
+        fullText[14] = fullText[14][:11] + str(mstarVal) + fullText[14][-11:]
     if 'tstar' in kwargs:                           # Photosphere temp parameter
-        fullText[15] = (fullText[15][:11] + str(kwargs['tstar']) + 
-                        fullText[15][-8:])
+        tstarVal = kwargs['tstar']
+        del kwargs['tstar']
+        fullText[15] = fullText[15][:11] + str(tstarVal) + fullText[15][-8:]
     if 'rstar' in kwargs:                           # Stellar radius parameter
-        fullText[16] = (fullText[16][:11] + str(kwargs['rstar']) + 
-                        fullText[16][-12:])
+        rstarVal = kwargs['rstar']
+        del kwargs['rstar']
+        fullText[16] = fullText[16][:11] + str(rstarVal) + fullText[16][-12:]
     if 'dist' in kwargs:                            # Stellar distance parameter
-        fullText[17] = (fullText[17][:15] + str(kwargs['dist']) + 
-                        fullText[17][-14:])
+        distVal = kwargs['dist']
+        del kwargs['dist']
+        fullText[17] = fullText[17][:15] + str(distVal) + fullText[17][-14:]
     if 'mdot' in kwargs:                            # Accretion rate parameter
-        fullText[18] = (fullText[18][:10] + str(kwargs['mdot']) + 
-                        fullText[18][-15:])
+        mdotVal = kwargs['mdot']
+        del kwargs['mdot']
+        fullText[18] = fullText[18][:10] + str(mdotVal) + fullText[18][-15:]
     if 'tshock' in kwargs:                          # Shock temp parameter
-        fullText[21] = fullText[21][:11] + str(float(kwargs['tshock'])) + '\n'
+        tshockVal = kwargs['tshock']
+        del kwargs['tshock']
+        fullText[21] = fullText[21][:11] + str(float(tshockVal)) + '\n'
     if 'alpha' in kwargs:                           # Alpha viscosity parameter
-        fullText[24] = (fullText[24][:11] + str(kwargs['alpha']) + 
-                        fullText[24][-2:])
+        alphaVal = kwargs['alpha']
+        del kwargs['alpha']
+        fullText[24] = fullText[24][:11] + str(alphaVal) + fullText[24][-2:]
     if 'mui' in kwargs:                             # Cosine of inclination
-        fullText[25] = (fullText[25][:9] + str(kwargs['mui']) + 
-                        fullText[25][-32:])
+        muiVal = kwargs['mui']
+        del kwargs['mui']
+        fullText[25] = fullText[25][:9] + str(muiVal) + fullText[25][-32:]
     if 'rdisk' in kwargs:                           # Outer disk radius parameter
-        fullText[31] = (fullText[31][:11] + str(kwargs['rdisk']) + 
-                        fullText[31][-25:])
+        rdiskVal = kwargs['rdisk']
+        del kwargs['rdisk']
+        fullText[31] = fullText[31][:11] + str(rdiskVal) + fullText[31][-25:]
     if 'labelend' in kwargs:                        # Labelend on output files
-        fullText[159] = (fullText[159][:14] + str(kwargs['labelend']) + 
-                        fullText[159][-2:])
+        labelVal = kwargs['labelend']
+        del kwargs['labelend']
+        fullText[159] = fullText[159][:14] + str(labelVal) + fullText[159][-2:]
     if 'temp' in kwargs:                            # Inner wall temp parameter
-        fullText[562] = (fullText[562][:9] + str(kwargs['temp']) + 
-                        fullText[562][-2:])
+        tempVal = kwargs['temp']
+        del kwargs['temp']
+        fullText[562] = fullText[562][:9] + str(tempVal) + fullText[562][-2:]
     if 'altinh' in kwargs:                          # Inner wall height parameter
-        fullText[563] = (fullText[563][:11] + str(kwargs['altinh']) + 
-                        fullText[563][-2:])
+        altVal = kwargs['altinh']
+        del kwargs['altinh']
+        fullText[563] = fullText[563][:11] + str(altVal) + fullText[563][-2:]
     
     # Once all changes have been made, we just create a new job file:
     if high:
@@ -699,6 +714,11 @@ def job_file_create(jobnum, path, high=0, **kwargs):
     newJob      = open(path+'job'+string_num, 'w')
     newJob.writelines(fullText)
     newJob.close()
+    
+    # Lastly, check for unused kwargs that may have been misspelled:
+    if len(kwargs) != 0:
+        print('JOB_FILE_CREATE: Unused kwargs, could be mistakes:')
+        print kwargs.keys()
     
     return
     
@@ -731,7 +751,7 @@ def job_optthin_create(jobn, path, high=0, **kwargs):
         fracamc - fraction of amorphous carbon by mass
         
         Some can still be included, such as dust grain compositions. They just aren't
-        currently supported.
+        currently supported. If any supplied kwargs are unused, it will print at the end.
     
     OUTPUT
     A job file with the name job_optthinXXX, where XXX is the three-string number from 001 - 999. If
@@ -751,64 +771,66 @@ def job_optthin_create(jobn, path, high=0, **kwargs):
     # Now we run through the list of changes desired and change them:
     # If we want to change amax:
     if 'amax' in kwargs:
+        amaxVal = kwargs['amax']
+        del kwargs['amax']
         # amax is a commented out switch, so we need to know the desired size:
-        if kwargs['amax'] == 0.25:
+        if amaxVal == 0.25:
             pass
-        elif kwargs['amax'] == 0.05 or kwargs['amax'] == '0p05':
+        elif amaxVal == 0.05 or amaxVal == '0p05':
             if fullText[28][0] == '#':
                 fullText[28] = fullText[28][1:]     # Remove the pound at 0.05
                 fullText[30] = '#' + fullText[30]   # Add the pound at 0.25
             else:
                 raise ValueError('JOB_OPTTHIN_CREATE: There is a comment problem at amax = 0.05!')
-        elif kwargs['amax'] == 0.1 or kwargs['amax'] == '0p1':
+        elif amaxVal == 0.1 or amaxVal == '0p1':
             if fullText[29][0] == '#':
                 fullText[29] = fullText[29][1:]     # Remove the pound at 0.1
                 fullText[30] = '#' + fullText[30]   # Add the pound at 0.25
             else:
                 raise ValueError('JOB_OPTTHIN_CREATE: There is a comment problem at amax = 0.1!')
-        elif kwargs['amax'] == 1.0 or kwargs['amax'] == '1p0':
+        elif amaxVal == 1.0 or amaxVal == '1p0':
             if fullText[31][0] == '#':
                 fullText[31] = fullText[31][1:]     # Remove the pound at 1.0
                 fullText[30] = '#' + fullText[30]   # Add the pound at 0.25
             else:
                 raise ValueError('JOB_OPTTHIN_CREATE: There is a comment problem at amax = 1.0!')
-        elif kwargs['amax'] == 2.0 or kwargs['amax'] == '2p0':
+        elif amaxVal == 2.0 or amaxVal == '2p0':
             if fullText[32][0] == '#':
                 fullText[32] = fullText[32][1:]     # Remove the pound at 2.0
                 fullText[30] = '#' + fullText[30]   # Add the pound at 0.25
             else:
                 raise ValueError('JOB_OPTTHIN_CREATE: There is a comment problem at amax = 2.0!')
-        elif kwargs['amax'] == 3.0 or kwargs['amax'] == '3p0':
+        elif amaxVal == 3.0 or amaxVal == '3p0':
             if fullText[33][0] == '#':
                 fullText[33] = fullText[33][1:]     # Remove the pound at 3.0
                 fullText[30] = '#' + fullText[30]   # Add the pound at 0.25
             else:
                 raise ValueError('JOB_OPTTHIN_CREATE: There is a comment problem at amax = 3.0!')
-        elif kwargs['amax'] == 4.0 or kwargs['amax'] == '4p0':
+        elif amaxVal == 4.0 or amaxVal == '4p0':
             if fullText[34][0] == '#':
                 fullText[34] = fullText[34][1:]     # Remove the pound at 4.0
                 fullText[30] = '#' + fullText[30]   # Add the pound at 0.25
             else:
                 raise ValueError('JOB_OPTTHIN_CREATE: There is a comment problem at amax = 4.0!')
-        elif kwargs['amax'] == 5.0 or kwargs['amax'] == '5p0':
+        elif amaxVal == 5.0 or amaxVal == '5p0':
             if fullText[35][0] == '#':
                 fullText[35] = fullText[35][1:]     # Remove the pound at 5.0
                 fullText[30] = '#' + fullText[30]   # Add the pound at 0.25
             else:
                 raise ValueError('JOB_OPTTHIN_CREATE: There is a comment problem at amax = 5.0!')
-        elif kwargs['amax'] == 10.0 or kwargs['amax'] == '10':
+        elif amaxVal == 10.0 or amaxVal == '10':
             if fullText[36][0] == '#':
                 fullText[36] = fullText[36][1:]     # Remove the pound at 10.0
                 fullText[30] = '#' + fullText[30]   # Add the pound at 0.25
             else:
                 raise ValueError('JOB_OPTTHIN_CREATE: There is a comment problem at amax = 10!')
-        elif kwargs['amax'] == 100.0 or kwargs['amax'] == '100':
+        elif amaxVal == 100.0 or amaxVal == '100':
             if fullText[37][0] == '#':
                 fullText[37] = fullText[37][1:]     # Remove the pound at 100.0
                 fullText[30] = '#' + fullText[30]   # Add the pound at 0.25
             else:
                 raise ValueError('JOB_OPTTHIN_CREATE: There is a comment problem at amax = 100!')
-        elif kwargs['amax'] == 1000.0 or kwargs['amax'] == '1mm':
+        elif amaxVal == 1000.0 or amaxVal == '1mm':
             if fullText[38][0] == '#':
                 fullText[38] = fullText[38][1:]     # Remove the pound at 1mm
                 fullText[30] = '#' + fullText[30]   # Add the pound at 0.25
@@ -819,50 +841,65 @@ def job_optthin_create(jobn, path, high=0, **kwargs):
     
     # Now we can cycle through the easier changes desired:    
     if 'labelend' in kwargs:                        # Labelend for output files
-        fullText[5] = (fullText[5][:14] + str(kwargs['labelend']) + 
-                        fullText[5][-27:])
+        labelVal = kwargs['labelend']
+        del kwargs['labelend']
+        fullText[5] = fullText[5][:14] + str(labelVal) + fullText[5][-27:]
     if 'tstar' in kwargs:                           # Stellar effective temperature
-        fullText[8] = (fullText[8][:10] + str(kwargs['tstar']) + 
-                        fullText[8][-42:])
+        tstarVal = kwargs['tstar']
+        del kwargs['tstar']
+        fullText[8] = fullText[8][:10] + str(tstarVal) + fullText[8][-42:]
     if 'rstar' in kwargs:                           # Stellar radius (solar units)
-        fullText[9] = (fullText[9][:10] + str(kwargs['rstar']) + 
-                        fullText[9][-43:])
+        rstarVal = kwargs['rstar']
+        del kwargs['rstar']
+        fullText[9] = fullText[9][:10] + str(rstarVal) + fullText[9][-43:]
     if 'dist' in kwargs:                            # Distance (in pc)
-        fullText[10] = (fullText[10][:15] + str(kwargs['dist']) + 
-                        fullText[10][-25:])
+        distVal = kwargs['dist']
+        del kwargs['dist']
+        fullText[10] = fullText[10][:15] + str(distVal) + fullText[10][-25:]
     if 'mui' in kwargs:                             # Cosine of inclination angle
-        fullText[13] = (fullText[13][:9] + str(kwargs['mui']) + 
-                        fullText[13][-54:])
+        muiVal = kwargs['mui']
+        del kwargs['mui']
+        fullText[13] = fullText[13][:9] + str(muiVal) + fullText[13][-54:]
     if 'rout' in kwargs:                            # Outer radius
-        fullText[14] = (fullText[14][:10] + str(kwargs['rout']) + 
-                        fullText[14][-21:])
+        routVal = kwargs['rout']
+        del kwargs['rout']
+        fullText[14] = fullText[14][:10] + str(routVal) + fullText[14][-21:]
     if 'rin' in kwargs:                             # Inner radius
-        fullText[15] = (fullText[15][:9] + str(kwargs['rin']) + 
-                        fullText[15][-26:])
-    if 'tau' in kwargs:                             # Optical depth (?)
-        fullText[17] = (fullText[17][:12] + str(kwargs['tau']) + 
-                        fullText[17][-4:])
+        rinVal = kwargs['rin']
+        del kwargs['rin']
+        fullText[15] = fullText[15][:9] + str(rinVal) + fullText[15][-26:]
+    if 'tau' in kwargs:                             # Optical depth
+        tauVal = kwargs['tau']
+        del kwargs['tau']
+        fullText[17] = fullText[17][:12] + str(tauVal) + fullText[17][-4:]
     if 'power' in kwargs:                           # No idea what this one is, hah.
-        fullText[18] = (fullText[18][:11] + str(kwargs['power']) + 
-                        fullText[18][-2:])
+        powVal = kwargs['power']
+        del kwargs['power']
+        fullText[18] = fullText[18][:11] + str(powVal) + fullText[18][-2:]
     if 'fudgeorg' in kwargs:                        # No idea what this is either...
-        fullText[19] = (fullText[19][:14] + str(kwargs['fudgeorg']) + 
-                        fullText[19][-2:])
+        orgVal = kwargs['fudgeorg']
+        del kwargs['fudgeorg']
+        fullText[19] = fullText[19][:14] + str(orgVal) + fullText[19][-2:]
     if 'fudgetroi' in kwargs:                       # Or this...
-        fullText[20] = (fullText[20][:15] + str(kwargs['fudgetroi']) + 
-                        fullText[20][-2:])
+        troiVal = kwargs['fudgetroi']
+        del kwargs['fudgetroi']
+        fullText[20] = fullText[20][:15] + str(troiVal) + fullText[20][-2:]
     if 'fracsil' in kwargs:                         # Fraction of silicates by mass
-        fullText[21] = (fullText[21][:13] + str(kwargs['fracsil']) + 
-                        fullText[21][-4:])
+        fsilVal = kwargs['fracsil']
+        del kwargs['fracsil']
+        fullText[21] = fullText[21][:13] + str(fsilVal) + fullText[21][-4:]
     if 'fracent' in kwargs:                         # Fraction of enstatite by mass
-        fullText[22] = (fullText[22][:13] + str(kwargs['fracent']) + 
-                        fullText[22][-2:])
+        fentVal = kwargs['fracent']
+        del kwargs['fracent']
+        fullText[22] = fullText[22][:13] + str(fentVal) + fullText[22][-2:]
     if 'fracforst' in kwargs:                       # Fraction of forsterite by mass
-        fullText[23] = (fullText[23][:15] + str(kwargs['fracforst']) + 
-                        fullText[23][-2:])
+        forstVal = kwargs['fracforst']
+        del kwargs['fracforst']
+        fullText[23] = fullText[23][:15] + str(forstVal) + fullText[23][-2:]
     if 'fracamc' in kwargs:                         # Fraction of amorphous carbon by mass
-        fullText[24] = (fullText[24][:13] + str(kwargs['fracamc']) + 
-                        fullText[24][-2:])
+        famcVal = kwargs['fracamc']
+        del kwargs['fracamc']
+        fullText[24] = fullText[24][:13] + str(famcVal) + fullText[24][-2:]
     
     # Once all changes have been made, we just create a new optthin job file:
     if high:
@@ -872,6 +909,11 @@ def job_optthin_create(jobn, path, high=0, **kwargs):
     newJob      = open(path+'job_optthin'+string_num, 'w')
     newJob.writelines(fullText)
     newJob.close()
+    
+    # Lastly, check for unused kwargs that may have been misspelled:
+    if len(kwargs) != 0:
+        print('JOB_OPTTHIN_CREATE: Unused kwargs, could be mistakes:')
+        print kwargs.keys()
     
     return
 
