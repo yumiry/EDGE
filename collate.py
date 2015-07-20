@@ -4,7 +4,7 @@ from astropy.io import ascii
 from glob import glob
 #import pdb
 
-def collate(path, jobnum, name, destination, optthin=0, clob=0):
+def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0):
     """
      collate.py                                                                          
                                                                                            
@@ -35,6 +35,8 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0):
              
             clob: Set this value to 1 (or True) to overwrite a currently existing
                   fits file from a previous run.
+            
+            high: Set this value to 1 (or True) if your job number is 4 digits long.
 
      THESE OPTIONS NOT CURRENTLY SUPPORTED IN PYTHON VERSION OF CODE                                                                                  
             /innerdisk: Denotes that this is an inner disk for a                           
@@ -69,6 +71,7 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0):
 
                                                                                             
      MODIFICATION HISTORY
+     Dan Feldman, 19 July 2015, added numCheck() and high kwarg to handle integer jobnums
      Dan Feldman, 25 June 2015, Improved readability.                                      
      Connor Robinson, Dan Feldman, 24 June 2015, Finished all current functionality for use
      Connor Robinson 26 May 2015, Began work on optically thin disk code
@@ -79,6 +82,10 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0):
      -                                                                                      
     """
     
+    # Convert jobnum into a string:
+    if type(jobnum) == int:
+        jobnum = numCheck(jobnum, high=high)
+        
     # If working with optically thin models
     if optthin:
         
@@ -229,3 +236,23 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0):
         raise IOError('COLLATE: INVALID INPUT FOR OPTTHIN KEYWORD, SHOULD BE 1 OR 0')
     
     return
+
+def numCheck(num, high=0):
+    """
+    Takes a number between 0 and 9999 and converts it into a 3 or 4 digit string. E.g., 2 --> '002', 12 --> '012'
+    
+    INPUT
+    num: A number between 0 and 9999. If this is a float, it will still work, but it will chop off the decimal.
+    high: BOOLEAN -- if True (1), output is forced to be a 4 digit string regardless of the number.
+        
+    OUTPUT
+    numstr: A string of 3 or 4 digits, where leading zeroes fill in any spaces.
+    
+    """
+    if num > 9999 or num < 0:
+        raise ValueError('Number too small/large for string handling!')
+    if num > 999 or high == 1: 
+        numstr          = '%04d' % num
+    else:
+        numstr          = '%03d' % num
+    return numstr
