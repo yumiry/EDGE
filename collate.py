@@ -21,14 +21,14 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0):
             path: String of with path to location of jobfiles and model result             
                   files. Both MUST be in the same location!                                      
                                                                                        
-            jobnum: String associated with a job number label end.                         
+            jobnum: String or integer associated with a job number label end.                         
                                                                                             
             name: String of the name of the object                                         
                                                                                             
             Destination: String with where you want the fits file to be                    
                          sent after it's made                                                           
                                                                                             
-     KEYWORDS                                                                              
+     OPTIONAL KEYWORDS                                                                             
             optthin: Set this value to 1 (or True) to run the optically thin dust
                      version of collate instead of the normal disk code. This will
                      also place a tag in the header.
@@ -38,39 +38,45 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0):
             
             high: Set this value to 1 (or True) if your job number is 4 digits long.
 
-     THESE OPTIONS NOT CURRENTLY SUPPORTED IN PYTHON VERSION OF CODE                                                                                  
-            /innerdisk: Denotes that this is an inner disk for a                           
-            pre-transitional disk. This doesn't change what code runs, just                
-            adds a tag to the header.                                                      
-                                                                                            
-            /outerdisk: Denotes that this is an outer disk for a                           
-            pre-transitional disk. This doesn't change what code runs, just                
-            adds a tag to the header.                                                      
-                                                                                            
-            /nounderscore: if the models are saved without an underscore                   
-            in the objectname, use this flag. Eg:                                          
-            rin.t130.amax3p0.test004 vs. rin.t130.amax3p0.test_004                         
-                                                                                            
-            /nophotnum: if the photosphere does not have a model                           
-            associated with it, use this flag. Eg: Phot4350.test                           
-                                                                                            
-     NOTES:                                                                                
-            ****CURRENTLY CANNOT TAKE IN VECTORS AND MUST BE USED IN A FOR                 
-            LOOP DUE TO USE OF READCOL****                                                 
-                                                                                            
+
+     EXAMPLES:                                                                                
+            To collate a single model run for the object 'myobject' under the
+            job number '001', use the following commands:
+
+            from collate import collate
+            path = 'Some/path/on/the/cluster/where/your/model/file/is/located/'
+            name = 'myobject'
+            dest = 'where/I/want/my/collated/file/to/go/'
+            modelnum = 1 
+            collate(path, modelnum, name, dest) 
+   
+            Note that:
+            modelnum = '001' will also work.
+
+            collate.py cannot handle multiple models at once, and currently needs to be
+            run in a loop. An example run with 100 optically thin dust models would
+            look something like this:
+
+            from collate import collate
+            path = 'Some/path/on/the/cluster/where/your/model/files/are/located/'
+            name = 'myobject'
+            dest = 'where/I/want/my/collated/files/to/go/'
+            for i in range(100):
+                collate(path, i+1, name, dest, optthin = 1)
+                                    
+               
+     NOTES:
             Label ends for model results should of form objectname_001,                    
-            objectname_002, ...                                                            
                                                                                             
-            For disk models, job file name convention is job001, job002, ...               
+            For disk models, job file name convention is job001
                                                                                             
-            For optically thin dust, job file name convention is                           
-            job_optthin001, job_optthin002, ...                                            
+            For optically thin dust, job file name convention is job_optthin001
 
-            !!!!!!! AMAX IN OPTTHIN MODEL DID NOT ORIGINALLY HAVE AN 'S' AFTER IT. CHANGED
-            IN PYTHON VERSION TO AMAXS
-
+            amax in the optthin model did not originally have an s after it. It is changed in 
+            the header file to have the s to be consistant with the disk models.
                                                                                             
      MODIFICATION HISTORY
+     Connor Robinson, 23 July 2015, Updated documentation and added usage examples
      Dan Feldman, 19 July 2015, added numCheck() and high kwarg to handle integer jobnums
      Dan Feldman, 25 June 2015, Improved readability.                                      
      Connor Robinson, Dan Feldman, 24 June 2015, Finished all current functionality for use
@@ -79,7 +85,6 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0):
      Connor Robinson 3, Mar, 2015, Added the /nounderscore and /photnum flags              
      Connor Robinson 6 Nov, 2014 First version uploaded to cluster  
                                                                                             
-     -                                                                                      
     """
     
     # Convert jobnum into a string:
@@ -191,7 +196,7 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0):
                 try:
                     dparam[ind] = float(jobf.split(param+"=")[1].split(" ")[0])
                 except ValueError:
-                    raise ValueError('COLLATE MISSING SPACE [ ] AFTER ALTINH VALUE, GO FIX IN JOB FILE'+jobnum)
+                    raise ValueError('COLLATE MISSING SPACE [ ] AFTER ALTINH VALUE, GO FIX IN JOB FILE '+jobnum)
             
             else:
                 dparam[ind] = float(jobf.split(param+"='")[1].split("'")[0])
