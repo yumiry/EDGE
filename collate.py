@@ -2,9 +2,9 @@ import numpy as np
 from astropy.io import fits
 from astropy.io import ascii
 from glob import glob
-#import pdb
+import pdb
 
-def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0):
+def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinct = 0):
     """
      collate.py                                                                          
                                                                                            
@@ -14,7 +14,7 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0):
             file with a header                                                             
                                                                                            
      CALLING SEQUENCE:                                                                     
-            collate(path, jobnum, name, destination, [optthin=1], [clob=1])
+            collate(path, jobnum, name, destination, [optthin=1], [clob=1], [noextinc = 1])
                                                                                            
                                                                                            
      INPUTS:                                                                               
@@ -38,6 +38,8 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0):
             
             high: Set this value to 1 (or True) if your job number is 4 digits long.
 
+            noextin: Set this value to 1 (or True) if you do NOT want to apply extinction 
+                     to the inner wall and photosphere.
 
      EXAMPLES:                                                                                
             To collate a single model run for the object 'myobject' under the
@@ -66,6 +68,10 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0):
                                     
                
      NOTES:
+
+            Collate corrects the flux from the star and the inner wall for extinction from
+            the outer disk.
+
             Label ends for model results should of form objectname_001,                    
                                                                                             
             For disk models, job file name convention is job001
@@ -74,8 +80,10 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0):
 
             amax in the optthin model did not originally have an s after it. It is changed in 
             the header file to have the s to be consistant with the disk models.
+
                                                                                             
      MODIFICATION HISTORY
+     Connor Robinson, 24 July 2014, Added extinction from the outer disk  + flag to turn it off
      Connor Robinson, 23 July 2015, Updated documentation and added usage examples
      Dan Feldman, 19 July 2015, added numCheck() and high kwarg to handle integer jobnums
      Dan Feldman, 25 June 2015, Improved readability.                                      
@@ -218,20 +226,38 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0):
         phot  = ascii.read(glob(path+'Phot*'+jobnum)[0]) #if you don't change photospheres for each run, may need to change.
         angle = ascii.read(glob(path+'angle*'+'_'+jobnum+'*')[0], data_start = 1)
         wall  =  ascii.read(glob(path+'fort17*'+name+'_'+jobnum)[0], data_start = 9)
+
+        #Apply extinction from outer disk on inner disk and star if the noextinct flag is not set
+        pdb.set_trace()
+        if noextinct == 0:
+            dataarr = np.array([phot['col1'], phot['col2'], wall['col2'], angle['col4'], angle['col6']])
+            dataarr[1] *=np.exp(dataarr[4])
+            dataarr[2] *=np.exp(dataarr[4])
+
+        elif noextinct == 1:
+            dataarr = np.array([phot['col1'], phot['col2'], wall['col2'], angle['col4']])
+    
+
+        else:
+            raise IOError('COLLATE: INVALID INPUT FOR OPTTHIN KEYWORD, SHOULD BE 1 OR 0')
         
-        dataarr = np.array([phot['col1'], phot['col2'], wall['col2'], angle['col4']])
-        
+
+        #Create the header and add parameters
         hdu = fits.PrimaryHDU(dataarr)
         
         for i, param in enumerate(sparam):
             hdu.header.set(param, dparam[i])
-        
-        #Add in other stuff to header
+
         hdu.header.set('RIN', float(np.loadtxt(glob(path+'rin*'+name+'_'+jobnum)[0])))
         hdu.header.set('WLAXIS', 0)
         hdu.header.set('PHOTAXIS',1)
         hdu.header.set('WALLAXIS', 2)
         hdu.header.set('ANGAXIS', 3)
+        
+        if noextinct == 0:
+            hdu.header.set('EXTAXIS', 4)
+        elif noextinct == 1:
+            hdu.header.set('NOEXT', 1)
         
         #Write header to fits file
         hdu.writeto(destination+name+'_'+jobnum+'.fits', clobber = clob)
