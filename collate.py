@@ -2,7 +2,7 @@ import numpy as np
 from astropy.io import fits
 from astropy.io import ascii
 from glob import glob
-import pdb
+#import pdb
 
 def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinct = 0):
     """
@@ -228,7 +228,6 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
         wall  =  ascii.read(glob(path+'fort17*'+name+'_'+jobnum)[0], data_start = 9)
 
         #Apply extinction from outer disk on inner disk and star if the noextinct flag is not set
-        pdb.set_trace()
         if noextinct == 0:
             dataarr = np.array([phot['col1'], phot['col2'], wall['col2'], angle['col4'], angle['col6']])
             dataarr[1] *=np.exp(dataarr[4])
