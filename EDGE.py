@@ -1005,10 +1005,13 @@ class TTS_Model(object):
     forsteri: Forsterite Fractional abundance.
     enstatit: Enstatite Fractional abundance.
     rin: The inner radius in AU.
+    dpath: Path where the data files are located.
+    high: Whether or not the data was part of a 1000+ grid.
     data: The data for each component inside the model.
     
     METHODS
-    __init__: initializes an instance of the class, and loads in the relevant data.
+    __init__: Initializes an instance of the class, and loads in the relevant metadata.
+    dataInit: Loads in the data to the object.
     calc_total: Calculates the "total" (combined) flux based on which components you want, then loads it into
                 the data attribute under the key 'total'.
     """
@@ -1158,7 +1161,55 @@ class TTS_Model(object):
             print 'CALC_TOTAL: Total flux calculated. Adding to the data structure.'
         self.data['total'] = totFlux
         return
+
+class PTD_Model(TTS_Model):
+    """
+    (By Dan)
+    Contains all the data and meta-data for a PTD Model from the D'Alessio et al. 2006 models. The input
+    will come from fits files that are created via Connor's collate.py.
     
+    ATTRIBUTES
+    name: Name of the object (e.g., CVSO109, V410Xray-2, ZZ_Tau, etc.).
+    jobn: The job number corresponding to this model.
+    mstar: Star's mass.
+    tstar: Star's effective temperature, based on Kenyon and Hartmann 1995.
+    rstar: Star's radius.
+    dist: Distance to the star.
+    mdot: Mass accretion rate.
+    alpha: Alpha parameter (from the viscous alpha disk model).
+    mui: Inclination of the system.
+    rdisk: The outer radius of the disk.
+    amax: The "maximum" grain size in the disk. (or just suspended in the photosphere of the disk?)
+    eps: The epsilon parameter, i.e., the amount of dust settling in the disk.
+    tshock: The temperature of the shock at the stellar photosphere.
+    temp: The temperature at the inner wall (1400 K maximum).
+    altinh: Scale heights of extent of the inner wall.
+    wlcut_an: 
+    wlcut_sc: 
+    nsilcomp: Number of silicate compounds.
+    siltotab: Total silicate abundance.
+    amorf_ol: 
+    amorf_py: 
+    forsteri: Forsterite Fractional abundance.
+    enstatit: Enstatite Fractional abundance.
+    rin: The inner radius in AU.
+    dpath: Path where the data files are located.
+    high: Whether or not the data was part of a 1000+ grid.
+    data: The data for each component inside the model.
+    
+    METHODS
+    __init__: initializes an instance of the class, and loads in the relevant metadata.
+    dataInit: Loads in the relevant data to the object. This differs from that of TTS_Model.
+    calc_total: Calculates the "total" (combined) flux based on which components you want, then loads it into
+                the data attribute under the key 'total'.
+    """
+    
+    def dataInit(self, jobn=None, **kwargs):
+        # Either supply jobn of inner wall model or supply kwargs to be used in a search.
+
+
+
+
 class TTS_Obs(object):
     """
     (By Dan)
