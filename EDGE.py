@@ -1112,7 +1112,7 @@ class TTS_Model(object):
                   #      self.data   = {'wl': HDUlist[0].data[:,0], 'phot': HDUlist[0].data[:,1], 'owall': HDUlist[0].data[:,2], \
                    #                    'disk': HDUlist[0].data[:,3], 'iwall': outfits[0].data[:,2]}
         
-    def calc_total(self, phot=1, wall=1, disk=1, owall=0, dust=0, verbose=1, dust_high=0):
+    def calc_total(self, phot=1, wall=1, disk=1, owall=0, dust=0, verbose=1, dust_high=0, altinh=None, save=0):
         """
         (By Dan)
         Calculates the total flux for our object (likely to be used for plotting and/or analysis). Once calculated, it
@@ -1124,42 +1124,92 @@ class TTS_Model(object):
         disk: BOOLEAN -- if 1 (True), will add disk component to the combined model.
         owall: BOOLEAN -- if 1 (True), will add outer wall component to the combined model (relevant for pre-trans only).
         dust: INTEGER -- Must correspond to an opt. thin dust model number linked to a fits file in datapath directory.
+        verbose: BOOLEAN -- if 1 (True), will print messages of what it's doing.
+        dust_high: BOOLEAN -- if 1 (True), will look for a 4 digit valued dust file.
+        altinh: FLOAT/INT -- if not None, will multiply inner wall flux by that amount.
+        save: BOOLEAN -- if 1 (True), will print out the components to a .dat file.
         """
         
         # Add the components to the total flux, checking each component along the way:
         totFlux         = np.zeros(len(self.data['wl']), dtype=float)
+        componentNumber = 0
         if phot:
             if verbose:
                 print 'CALC_TOTAL: Adding photosphere component to the total flux.'
             totFlux     = totFlux + self.data['phot']
+            componentNumber += 1
         if wall:
             if verbose:
                 print 'CALC_TOTAL: Adding inner wall component to the total flux.'
-            totFlux     = totFlux + self.data['iwall']
+            if altinh != None:
+                newWall = self.data['iwall'] * altinh
+                totFlux = totFlux + newWall
+            else:
+                totFlux = totFlux + self.data['iwall']
+            componentNumber += 1
         if disk:
             if verbose:
                 print 'CALC_TOTAL: Adding disk component to the total flux.'
             totFlux     = totFlux + self.data['disk']
+            componentNumber += 1
         if owall:
             if verbose:
                 print 'CALC_TOTAL: Adding outer wall component to the total flux.'
             totFlux     = totFlux + self.data['owall']
+            componentNumber += 1
         if dust != 0:
             try:
                 dustNum = numCheck(dust, high=dust_high)
             except:
                 raise ValueError('CALC_TOTAL: Error! Dust input not a valid integer')
-                
             dustHDU     = fits.open(self.dpath+self.name+'_OTD_'+dustNum+'.fits')
             if verbose:
                 print 'CALC_TOTAL: Adding optically thin dust component to total flux.'
             self.data['dust']   = dustHDU[0].data[1,:]
             totFlux     = totFlux + self.data['dust']
+            componentNumber += 1
         
         # Add the total flux array to the data dictionary attribute:
         if verbose:
             print 'CALC_TOTAL: Total flux calculated. Adding to the data structure.'
         self.data['total'] = totFlux
+        componentNumber += 1
+        
+        # If save, create an output file with these components printed out:
+        if save:
+            outputTable = np.zeros([len(totFlux), componentNumber])
+            
+            # Populate the header and data table with the components and names:
+            headerStr   = 'Wavelength (microns), Total Flux, '
+            outputTable[:, 0] = self.data['wl']
+            outputTable[:, 1] = self.data['total']
+            colNum      = 2
+            if phot:
+                headerStr += 'Photosphere, '
+                outputTable[:, colNum] = self.data['phot']
+                colNum += 1
+            if wall:
+                headerStr += 'Inner Wall, '
+                outputTable[:, colNum] = self.data['iwall']
+                colNum += 1
+            if owall:
+                headerStr += 'Outer Wall, '
+                outputTable[:, colNum] = self.data['owall']
+                colNum += 1
+            if disk:
+                headerStr += 'Outer Disk, '
+                outputTable[:, colNum] = self.data['disk']
+                colNum += 1
+            if dust != 0:
+                headerStr += 'Opt. Thin Dust, '
+                outputTable[:, colNum] = self.data['dust']
+                colNum += 1
+            
+            # Trim the header and save:
+            headerStr  = headerStr[0:-2] + ' \n'
+            filestring = '%s%s_%s.dat' % (self.dpath, self.name, numCheck(self.jobn, high=self.high))
+            np.savetxt(filestring, outputTable, format='%.2f', delimiter=',', header=headerStr, comments='#')
+        
         return
 
 class PTD_Model(TTS_Model):
@@ -1204,8 +1254,18 @@ class PTD_Model(TTS_Model):
                 the data attribute under the key 'total'.
     """
     
-    def dataInit(self, jobn=None, **kwargs):
-        # Either supply jobn of inner wall model or supply kwargs to be used in a search.
+    def dataInit(self, jobw=None, **searchKwargs):
+        # Either supply jobw of inner wall model or supply kwargs to be used in a search.
+        
+        if jobw == None and len(searchKwargs) == 0:
+            raise IOError('DATAINIT: You must enter either a job number or kwargs to match or search for an inner wall.')
+        
+        if jobw != None:
+            try:
+                jobwstr = numCheck(jobw)
+        
+        else:
+            # When doing the searchJobs() call, use **searchKwargs to pass that as the keyword arguments to searchJobs!
 
 
 
