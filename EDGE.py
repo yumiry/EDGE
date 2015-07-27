@@ -1013,7 +1013,7 @@ class TTS_Model(object):
                 the data attribute under the key 'total'.
     """
     
-    def __init__(self, name, jobn, dpath=datapath, high=0):
+    def __init__(self, name, jobn, dpath=datapath, full_trans=1, high=0, headonly=0):
         """
         (By Dan)
         Initializes instances of this class and loads the relevant data into attributes.
@@ -1034,6 +1034,12 @@ class TTS_Model(object):
         fitsname        = dpath + name + '_' + stringnum + '.fits'      # Fits filename, preceeded by the path from paths section
         HDUlist         = fits.open(fitsname)                           # Opens the fits file for use
         header          = HDUlist[0].header                             # Stores the header in this variable
+        
+        # The new Python version of collate flips array indices, so must identify which collate.py was used:
+        if len(HDUlist[0].data[:,0]) == 4:
+            new         = 1
+        else:
+            new         = 0
         
         # Initialize meta-data attributes for this object:
         self.name       = name
@@ -1063,53 +1069,37 @@ class TTS_Model(object):
         self.dpath      = dpath
         self.high       = high
         
-        HDUlist.close()
-        return
-    
-    def dataInit(self):
         # Initialize data attributes for this object using nested dictionaries:
         # wl is the wavelength (corresponding to all three flux arrays). Phot is the stellar photosphere emission.
         # iWall is the flux from the inner wall. Disk is the emission from the angle file.
-        if high:
-            stringnum   = numCheck(self.jobn, high=self.high)
-        else:
-            stringnum   = numCheck(self.jobn)
-        fitsname        = self.dpath + self.name + '_' + stringnum + '.fits'
-        HDUlist         = fits.open(fitsname)
-        
-        # The new Python version of collate flips array indices, so must identify which collate.py was used:
-        if len(HDUlist[0].data[:,0]) == 4:
-            new         = 1
-        else:
-            new         = 0
-
-        if new:
-            self.data   = {'wl': HDUlist[0].data[0,:], 'phot': HDUlist[0].data[1,:], 'iwall': HDUlist[0].data[2,:], \
-                           'disk': HDUlist[0].data[3,:]}
-        else:
-            self.data   = {'wl': HDUlist[0].data[:,0], 'phot': HDUlist[0].data[:,1], 'iwall': HDUlist[0].data[:,2], \
-                           'disk': HDUlist[0].data[:,3]}
-        
-        HDUlist.close()
-        return
-         #   else:
+        if headonly == 0:
+            if full_trans:
+                if new:
+                    self.data   = {'wl': HDUlist[0].data[0,:], 'phot': HDUlist[0].data[1,:], 'iwall': HDUlist[0].data[2,:], \
+                                   'disk': HDUlist[0].data[3,:]}
+                else:
+                    self.data   = {'wl': HDUlist[0].data[:,0], 'phot': HDUlist[0].data[:,1], 'iwall': HDUlist[0].data[:,2], \
+                                   'disk': HDUlist[0].data[:,3]}
+            else:
                 # If a pre-transitional disk, have to match the job to the inner-wall job.
-          #      z           = raw_input('What altinh value are you using for the inner wall? ')
-           #     match       = searchJobs(name, dpath=dpath, amaxs=header['AMAXS'], eps=header['EPS'], alpha=header['ALPHA'], mdot=header['MDOT'], altinh=int(z#),rdisk=1, temp=1400)
-            #    if len(match) == 0:
-             #       raise IOError('__INIT__: No inner wall model matches these parameters.')
-              #  elif len(match) >1:
-               #     raise IOError('__INIT__: Multiple inner wall models match. Do not know which one to pick.')
-            #    else:
-             #       outfits = fits.open(dpath + name + '_' + match[0] + '.fits')
-              #      if new:
-               #         self.data   = {'wl': HDUlist[0].data[0,:], 'phot': HDUlist[0].data[1,:], 'owall': HDUlist[0].data[2,:], \
-                #                       'disk': HDUlist[0].data[3,:], 'iwall': outfits[0].data[2,:]}
-                 #   else:
-                  #      self.data   = {'wl': HDUlist[0].data[:,0], 'phot': HDUlist[0].data[:,1], 'owall': HDUlist[0].data[:,2], \
-                   #                    'disk': HDUlist[0].data[:,3], 'iwall': outfits[0].data[:,2]}
+                z           = raw_input('What altinh value are you using for the inner wall? ')
+                match       = searchJobs(name, dpath=dpath, amaxs=header['AMAXS'], eps=header['EPS'], alpha=header['ALPHA'], mdot=header['MDOT'], altinh=int(z),rdisk=1, temp=1400)
+                if len(match) == 0:
+                    raise IOError('__INIT__: No inner wall model matches these parameters.')
+                elif len(match) >1:
+                    raise IOError('__INIT__: Multiple inner wall models match. Do not know which one to pick.')
+                else:
+                    outfits = fits.open(dpath + name + '_' + match[0] + '.fits')
+                    if new:
+                        self.data   = {'wl': HDUlist[0].data[0,:], 'phot': HDUlist[0].data[1,:], 'owall': HDUlist[0].data[2,:], \
+                                       'disk': HDUlist[0].data[3,:], 'iwall': outfits[0].data[2,:]}
+                    else:
+                        self.data   = {'wl': HDUlist[0].data[:,0], 'phot': HDUlist[0].data[:,1], 'owall': HDUlist[0].data[:,2], \
+                                       'disk': HDUlist[0].data[:,3], 'iwall': outfits[0].data[:,2]}
+    
+        HDUlist.close()                                                 # Closes the fits file, since we no longer need it
         
-    def calc_total(self, phot=1, wall=1, disk=1, owall=0, dust=0, verbose=1, dust_high=0):
+    def calc_total(self, phot=1, wall=1, disk=1, owall=0, dust=0, verbose=1, dust_high=0, altinh=None, save=0):
         """
         (By Dan)
         Calculates the total flux for our object (likely to be used for plotting and/or analysis). Once calculated, it
@@ -1121,42 +1111,92 @@ class TTS_Model(object):
         disk: BOOLEAN -- if 1 (True), will add disk component to the combined model.
         owall: BOOLEAN -- if 1 (True), will add outer wall component to the combined model (relevant for pre-trans only).
         dust: INTEGER -- Must correspond to an opt. thin dust model number linked to a fits file in datapath directory.
+        verbose: BOOLEAN -- if 1 (True), will print messages of what it's doing.
+        dust_high: BOOLEAN -- if 1 (True), will look for a 4 digit valued dust file.
+        altinh: FLOAT/INT -- if not None, will multiply inner wall flux by that amount.
+        save: BOOLEAN -- if 1 (True), will print out the components to a .dat file.
         """
         
         # Add the components to the total flux, checking each component along the way:
         totFlux         = np.zeros(len(self.data['wl']), dtype=float)
+        componentNumber = 1
         if phot:
             if verbose:
                 print 'CALC_TOTAL: Adding photosphere component to the total flux.'
             totFlux     = totFlux + self.data['phot']
+            componentNumber += 1
         if wall:
             if verbose:
                 print 'CALC_TOTAL: Adding inner wall component to the total flux.'
-            totFlux     = totFlux + self.data['iwall']
+            if altinh != None:
+                newWall = self.data['iwall'] * altinh
+                totFlux = totFlux + newWall                  # Note: if save=1, will save iwall w/ the original altinh.
+            else:
+                totFlux = totFlux + self.data['iwall']
+            componentNumber += 1
         if disk:
             if verbose:
                 print 'CALC_TOTAL: Adding disk component to the total flux.'
             totFlux     = totFlux + self.data['disk']
+            componentNumber += 1
         if owall:
             if verbose:
                 print 'CALC_TOTAL: Adding outer wall component to the total flux.'
             totFlux     = totFlux + self.data['owall']
+            componentNumber += 1
         if dust != 0:
             try:
                 dustNum = numCheck(dust, high=dust_high)
             except:
                 raise ValueError('CALC_TOTAL: Error! Dust input not a valid integer')
-                
             dustHDU     = fits.open(self.dpath+self.name+'_OTD_'+dustNum+'.fits')
             if verbose:
                 print 'CALC_TOTAL: Adding optically thin dust component to total flux.'
             self.data['dust']   = dustHDU[0].data[1,:]
             totFlux     = totFlux + self.data['dust']
+            componentNumber += 1
         
         # Add the total flux array to the data dictionary attribute:
         if verbose:
             print 'CALC_TOTAL: Total flux calculated. Adding to the data structure.'
         self.data['total'] = totFlux
+        componentNumber += 1
+        
+        # If save, create an output file with these components printed out:
+        if save:
+            outputTable = np.zeros([len(totFlux), componentNumber])
+
+            # Populate the header and data table with the components and names:
+            headerStr   = 'Wavelength, Total Flux, '
+            outputTable[:, 0] = self.data['wl']
+            outputTable[:, 1] = self.data['total']
+            colNum      = 2
+            if phot:
+                headerStr += 'Photosphere, '
+                outputTable[:, colNum] = self.data['phot']
+                colNum += 1
+            if wall:
+                headerStr += 'Inner Wall, '
+                outputTable[:, colNum] = self.data['iwall']
+                colNum += 1
+            if owall:
+                headerStr += 'Outer Wall, '
+                outputTable[:, colNum] = self.data['owall']
+                colNum += 1
+            if disk:
+                headerStr += 'Outer Disk, '
+                outputTable[:, colNum] = self.data['disk']
+                colNum += 1
+            if dust != 0:
+                headerStr += 'Opt. Thin Dust, '
+                outputTable[:, colNum] = self.data['dust']
+                colNum += 1
+            
+            # Trim the header and save:
+            headerStr  = headerStr[0:-2]
+            filestring = '%s%s_%s.dat' % (self.dpath, self.name, numCheck(self.jobn, high=self.high))
+            np.savetxt(filestring, outputTable, fmt='%.3e', delimiter=', ', header=headerStr, comments='#')
+        
         return
     
 class TTS_Obs(object):
