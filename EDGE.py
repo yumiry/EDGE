@@ -1132,7 +1132,7 @@ class TTS_Model(object):
         
         # Add the components to the total flux, checking each component along the way:
         totFlux         = np.zeros(len(self.data['wl']), dtype=float)
-        componentNumber = 0
+        componentNumber = 1
         if phot:
             if verbose:
                 print 'CALC_TOTAL: Adding photosphere component to the total flux.'
@@ -1143,7 +1143,7 @@ class TTS_Model(object):
                 print 'CALC_TOTAL: Adding inner wall component to the total flux.'
             if altinh != None:
                 newWall = self.data['iwall'] * altinh
-                totFlux = totFlux + newWall
+                totFlux = totFlux + newWall                  # Note: if save=1, will save iwall w/ the original altinh.
             else:
                 totFlux = totFlux + self.data['iwall']
             componentNumber += 1
@@ -1178,9 +1178,9 @@ class TTS_Model(object):
         # If save, create an output file with these components printed out:
         if save:
             outputTable = np.zeros([len(totFlux), componentNumber])
-            
+
             # Populate the header and data table with the components and names:
-            headerStr   = 'Wavelength (microns), Total Flux, '
+            headerStr   = 'Wavelength, Total Flux, '
             outputTable[:, 0] = self.data['wl']
             outputTable[:, 1] = self.data['total']
             colNum      = 2
@@ -1206,9 +1206,9 @@ class TTS_Model(object):
                 colNum += 1
             
             # Trim the header and save:
-            headerStr  = headerStr[0:-2] + ' \n'
+            headerStr  = headerStr[0:-2]
             filestring = '%s%s_%s.dat' % (self.dpath, self.name, numCheck(self.jobn, high=self.high))
-            np.savetxt(filestring, outputTable, format='%.2f', delimiter=',', header=headerStr, comments='#')
+            np.savetxt(filestring, outputTable, fmt='%.3e', delimiter=', ', header=headerStr, comments='#')
         
         return
 
