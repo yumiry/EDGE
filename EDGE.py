@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Created by Dan Feldman and Connor Robinson for analyzing data from Espaillat Group research models.
-# Last updated: 7/10/15 by Dan
+# Last updated: 7/29/15 by Dan
 
 #-------------------------------------------IMPORT RELEVANT MODELS-------------------------------------------
 import numpy as np
@@ -26,7 +26,7 @@ plt.rc('figure', autolayout=True)
 # Folders where model output data and observational data can be found:
 datapath        = '/Users/danfeldman/Orion_Research/Orion_Research/CVSO_4Objs/Models/CVSO109PT2/'
 #figurepath      = '/Users/danfeldman/Orion_Research/Orion_Research/CVSO_4Objs/Look_SEDs/CVSO90PT/'
-figurepath      = '/Users/danfeldman/Orion_Research/Orion_Research/CVSO_4Objs/Models/CVSO107_2/'
+figurepath      = '/Users/danfeldman/Orion_Research/Orion_Research/CVSO_4Objs/Models/Full_CVSO_Grid/CVSO58_sil/'
 #deredpath       = '/Users/danfeldman/Orion_Research/Dereddening_Codes/starparam/'           # De-redden magnitude path
 
 #---------------------------------------------INDEPENDENT FUNCTIONS----------------------------------------------
@@ -51,6 +51,68 @@ def filelist(path):
     for index, val in enumerate(hid):                           # Pop out tagged entries
         flist.pop(val - index)
     return flist
+
+def deci_to_time(ra=None, dec=None):
+    """
+    (By Dan)
+    
+    Converts decimal values of ra and dec into arc time coordinates.
+    
+    INPUTS
+    ra: The float value of right ascension.
+    dec: The float value of declination.
+    
+    OUTPUTS
+    new_ra: The converted RA. If no ra supplied, returns -1
+    new_dec: The converted dec. If no dec supplied, returns -1
+    """
+    
+    new_ra  = -1
+    new_dec = -1
+    
+    if ra is not None:
+        if type(ra) != float:
+            raise ValueError('DECI_TO_TIME: RA is not a float. Cannot convert.')  
+          
+        # First, we find the number of hours:
+        hours    = ra / 15.0
+        hoursInt = int(hours)
+        hours    = hours - hoursInt
+        
+        # Next, we want minutes:
+        minutes  = hours * 60.0
+        minInt   = int(minutes)
+        minutes  = minutes - minInt
+        
+        # Lastly, seconds:
+        seconds  = minutes * 60.0
+        new_ra   = '{0:02d} {1:02d} {2:.2f}'.format(hoursInt, minInt, seconds) 
+    
+    if dec is not None:
+        if type(dec) != float:
+            raise ValueError('DECI_TO_TIME: Dec is not a float. Cannot convert.')
+        
+        # For dec, have to check and store the sign:
+        if dec < 0.0:
+            sign = '-'
+        else:
+            sign = '+'
+        dec      = abs(dec)
+        
+        # First, we find the number of degrees:
+        degInt   = int(dec)
+        deg      = dec - degInt
+        
+        # Next, we want minutes:
+        minutes  = deg * 60.0
+        minInt   = int(minutes)
+        minutes  = minutes - minInt
+        
+        # Lastly, seconds:
+        seconds  = minutes * 60.0
+        new_dec  = '{0:s}{1:02d} {2:02d} {3:.2f}'.format(sign, degInt, minInt, seconds)
+    
+    return new_ra, new_dec
 
 def convertFreq(value):
     """
@@ -199,7 +261,7 @@ def convertMag(value, band, jy='False'):
         fluxJ       = 8.36 * (10.0**(value / -2.5))
         wavelength  = 22.09
     else:
-        raise ValueError('CONVERTOPTMAG: Unknown Band given. Cannot convert.')
+        raise ValueError('CONVERTMAG: Unknown Band given. Cannot convert.')
     
     if jy == 'False':
         # Next, convert to flux from Janskys:
@@ -261,16 +323,16 @@ def look(obs, model=None, jobn=None, save=0, colkeys=None, diskcomb=0):
         colkeys         = ['p', 'r', 'o', 'b', 'c', 'm', 'g', 'y', 'l', 'k', 't', 'w', 'v', 'd', 'n', 'e', 'j', 's']    # Order in which colors are used
 
     # Let the plotting begin!
-    plt.figure(1)#,figsize=(3,4))
+    plt.figure(1)
+    
     # Plot the spectra first:
     for sind, skey in enumerate(speckeys):
         plt.plot(obs.spectra[skey]['wl'], obs.spectra[skey]['lFl'], color=colors[colkeys[sind]] , linewidth=2.0, label=skey)
+    
     # Next is the photometry:
     for pind, pkey in enumerate(photkeys):
         # If an upper limit only:
         if pkey in obs.ulim:
-            #plt.arrow(obs.photometry[pkey]['wl'], obs.photometry[pkey]['lFl'], 0.0, -1.*(obs.photometry[pkey]['lFl']/2.), \
-            #          color=colors[colkeys[pind+len(speckeys)]], length_includes_head=False)
             plt.plot(obs.photometry[pkey]['wl'], obs.photometry[pkey]['lFl'], 'v', \
                      color=colors[colkeys[pind+len(speckeys)]], markersize=7, label=pkey)
         # If not an upper limit, plot as normal:
@@ -279,8 +341,10 @@ def look(obs, model=None, jobn=None, save=0, colkeys=None, diskcomb=0):
                 plt.plot(obs.photometry[pkey]['wl'], obs.photometry[pkey]['lFl'], 'o', mfc='w', mec=colors[colkeys[pind+len(speckeys)]], mew=1.0,\
                          markersize=7, label=pkey)
             else:
-                plt.errorbar(obs.photometry[pkey]['wl'], obs.photometry[pkey]['lFl'], yerr=obs.photometry[pkey]['err'], mec=colors[colkeys[pind+len(speckeys)]], \
-                             fmt='o', mfc='w', mew=1.0, markersize=7, ecolor=colors[colkeys[pind+len(speckeys)]], elinewidth=2.0, capsize=2.0, label=pkey)
+                plt.errorbar(obs.photometry[pkey]['wl'], obs.photometry[pkey]['lFl'], yerr=obs.photometry[pkey]['err'], \
+                             mec=colors[colkeys[pind+len(speckeys)]], fmt='o', mfc='w', mew=1.0, markersize=7, \
+                             ecolor=colors[colkeys[pind+len(speckeys)]], elinewidth=2.0, capsize=2.0, label=pkey)
+    
     # Now, the model (if a model supplied):
     if model != None:
         modkeys         = model.data.keys()
@@ -313,6 +377,7 @@ def look(obs, model=None, jobn=None, save=0, colkeys=None, diskcomb=0):
         plt.figtext(0.75,0.73,'IWallT = '+ str(model.temp), color='#815201', size='9')
         plt.figtext(0.75,0.70,'Altinh = '+ str(model.altinh), color='#5B3A00', size='9')
         plt.figtext(0.75,0.67,'Mdot = '+ str(model.mdot), color='#3D2C02', size='9')
+        
     # Lastly, the remaining parameters to plotting (mostly aesthetics):
     plt.xscale('log')
     plt.yscale('log')
@@ -322,6 +387,8 @@ def look(obs, model=None, jobn=None, save=0, colkeys=None, diskcomb=0):
     plt.xlabel(r'${\rm {\bf \lambda}\; (\mu m)}$')
     plt.title(obs.name.upper())
     plt.legend(loc=3)
+    
+    # Should we save or should we plot?
     if save:
         if type(jobn) != int:
             raise ValueError('LOOK: Jobn must be an integer if you wish to save the plot.')
@@ -344,9 +411,8 @@ def searchJobs(target, dpath=datapath, **kwargs):
               will loop through each of these kwargs and see if they all match.
     
     OUTPUTS
-    job_matches: A numpy array containing all the jobs that matched the kwargs. Can be an empty array, single value array, or multivalued array. Will
-                 contain matches by their integer number.
-    
+    job_matches: A numpy array containing all the jobs that matched the kwargs. Can be an empty array, single value array, or 
+                 multivalued array. Will contain matches by their integer number.
     """
     
     job_matches         = np.array([], dtype='string')
@@ -393,8 +459,8 @@ def loadPickle(name, picklepath=datapath, num=None):
     
     OUTPUT
     pickle: The object containing the data loaded in from the pickle.
-    
     """
+    
     if num == None:
         # Check if there is more than one
         flist           = filelist(picklepath)
@@ -436,13 +502,12 @@ def job_file_create(jobnum, path, high=0, **kwargs):
         altinh - the height of the inner wall in scale heights
         
         Some can still be included, such as dust grain compositions. They just aren't
-        currently supported.
+        currently supported. If any supplied kwargs are unused, it will print at the end.
     
     OUTPUT
     A job file with the name jobXXX, where XXX is the three-string number from 001 - 999. If
     high == True, the output name will be jobXXXX, where XXXX is a four-string number from 1000-9999.
     No formal outputs are returned by this function; the file is created in the path directory.
-    
     """
     
     # First, let's read in the sample job file so we have a template:
@@ -459,10 +524,12 @@ def job_file_create(jobnum, path, high=0, **kwargs):
     # Now we run through the list of changes desired and change them:
     # If we want to change the maximum grain size (amaxs):
     if 'amaxs' in kwargs:
+        amaxVal = kwargs['amaxs']
+        del kwargs['amaxs']
         # amaxs is a commented out switch, so we need to know the desired size:
-        if kwargs['amaxs'] == 0.25:
+        if amaxVal == 0.25:
             pass
-        elif kwargs['amaxs'] == 0.05:
+        elif amaxVal == 0.05:
             if fullText[37][0] == '#' and fullText[38][0] == '#':
                 fullText[37] = fullText[37][1:]     # Remove the pound at 0.05
                 fullText[38] = fullText[38][1:]
@@ -470,7 +537,7 @@ def job_file_create(jobnum, path, high=0, **kwargs):
                 fullText[44] = '#' + fullText[44]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at amax=0.05')
-        elif kwargs['amaxs'] == 0.1:
+        elif amaxVal == 0.1:
             if fullText[40][0] == '#' and fullText[41][0] == '#':
                 fullText[40] = fullText[40][1:]     # Remove the pound at 0.1
                 fullText[41] = fullText[41][1:]
@@ -478,7 +545,7 @@ def job_file_create(jobnum, path, high=0, **kwargs):
                 fullText[44] = '#' + fullText[44]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at amax=0.1')
-        elif kwargs['amaxs'] == 1.0:
+        elif amaxVal == 1.0:
             if fullText[46][0] == '#' and fullText[47][0] == '#':
                 fullText[46] = fullText[46][1:]     # Remove the pound at 1.0
                 fullText[47] = fullText[47][1:]
@@ -486,7 +553,7 @@ def job_file_create(jobnum, path, high=0, **kwargs):
                 fullText[44] = '#' + fullText[44]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at amax=1.0')
-        elif kwargs['amaxs'] == 2.0:
+        elif amaxVal == 2.0:
             if fullText[49][0] == '#' and fullText[50][0] == '#':
                 fullText[49] = fullText[49][1:]     # Remove the pound at 2.0
                 fullText[50] = fullText[50][1:]
@@ -494,7 +561,7 @@ def job_file_create(jobnum, path, high=0, **kwargs):
                 fullText[44] = '#' + fullText[44]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at amax=2.0')
-        elif kwargs['amaxs'] == 3.0:
+        elif amaxVal == 3.0:
             if fullText[52][0] == '#' and fullText[53][0] == '#':
                 fullText[52] = fullText[52][1:]     # Remove the pound at 3.0
                 fullText[53] = fullText[53][1:]
@@ -502,7 +569,7 @@ def job_file_create(jobnum, path, high=0, **kwargs):
                 fullText[44] = '#' + fullText[44]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at amax=3.0')
-        elif kwargs['amaxs'] == 4.0:
+        elif amaxVal == 4.0:
             if fullText[55][0] == '#' and fullText[56][0] == '#':
                 fullText[55] = fullText[55][1:]     # Remove the pound at 4.0
                 fullText[56] = fullText[56][1:]
@@ -510,7 +577,7 @@ def job_file_create(jobnum, path, high=0, **kwargs):
                 fullText[44] = '#' + fullText[44]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at amax=4.0')
-        elif kwargs['amaxs'] == 5.0:
+        elif amaxVal == 5.0:
             if fullText[58][0] == '#' and fullText[59][0] == '#':
                 fullText[58] = fullText[58][1:]     # Remove the pound at 5.0
                 fullText[59] = fullText[59][1:]
@@ -518,7 +585,7 @@ def job_file_create(jobnum, path, high=0, **kwargs):
                 fullText[44] = '#' + fullText[44]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at amax=5.0')
-        elif kwargs['amaxs'] == 10.0:
+        elif amaxVal == 10.0:
             if fullText[61][0] == '#' and fullText[62][0] == '#':
                 fullText[61] = fullText[61][1:]     # Remove the pound at 10.0
                 fullText[62] = fullText[62][1:]
@@ -526,7 +593,7 @@ def job_file_create(jobnum, path, high=0, **kwargs):
                 fullText[44] = '#' + fullText[44]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at amax=10.0')
-        elif kwargs['amaxs'] == 100.0:
+        elif amaxVal == 100.0:
             if fullText[64][0] == '#' and fullText[65][0] == '#':
                 fullText[64] = fullText[64][1:]     # Remove the pound at 100.0
                 fullText[65] = fullText[65][1:]
@@ -539,10 +606,12 @@ def job_file_create(jobnum, path, high=0, **kwargs):
     
     # Now, we examine the epsilon parameter if a value provided:
     if 'epsilon' in kwargs:
+        epsVal = kwargs['epsilon']
+        del kwargs['epsilon']
         # Epsilon is a commented out switch, so we need the desired parameter:
-        if kwargs['epsilon'] == 0.0001:
+        if epsVal == 0.0001:
             pass        # Default value is 0.0001
-        elif kwargs['epsilon'] == 0.001:
+        elif epsVal == 0.001:
             if fullText[74][0] == '#' and fullText[75][0] == '#':
                 fullText[74] = fullText[74][1:]     # Remove the pound at 0.001
                 fullText[75] = fullText[75][1:]
@@ -550,7 +619,7 @@ def job_file_create(jobnum, path, high=0, **kwargs):
                 fullText[72] = '#' + fullText[72]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at eps=0.001')
-        elif kwargs['epsilon'] == 0.01:
+        elif epsVal == 0.01:
             if fullText[77][0] == '#' and fullText[78][0] == '#':
                 fullText[77] = fullText[77][1:]     # Remove the pound at 0.01
                 fullText[78] = fullText[78][1:]
@@ -558,7 +627,7 @@ def job_file_create(jobnum, path, high=0, **kwargs):
                 fullText[72] = '#' + fullText[72]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at eps=0.01')
-        elif kwargs['epsilon'] == 0.1:
+        elif epsVal == 0.1:
             if fullText[80][0] == '#' and fullText[81][0] == '#':
                 fullText[80] = fullText[80][1:]     # Remove the pound at 0.1
                 fullText[81] = fullText[81][1:]
@@ -566,7 +635,7 @@ def job_file_create(jobnum, path, high=0, **kwargs):
                 fullText[72] = '#' + fullText[72]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at eps=0.1')
-        elif kwargs['epsilon'] == 0.2:
+        elif epsVal == 0.2:
             if fullText[83][0] == '#' and fullText[84][0] == '#':
                 fullText[83] = fullText[83][1:]     # Remove the pound at 0.2
                 fullText[84] = fullText[84][1:]
@@ -574,7 +643,7 @@ def job_file_create(jobnum, path, high=0, **kwargs):
                 fullText[72] = '#' + fullText[72]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at eps=0.2')
-        elif kwargs['epsilon'] == 0.5:
+        elif epsVal == 0.5:
             if fullText[86][0] == '#' and fullText[87][0] == '#':
                 fullText[86] = fullText[86][1:]     # Remove the pound at 0.5
                 fullText[87] = fullText[87][1:]
@@ -582,7 +651,7 @@ def job_file_create(jobnum, path, high=0, **kwargs):
                 fullText[72] = '#' + fullText[72]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at eps=0.5')
-        elif kwargs['epsilon'] == 1.0:
+        elif epsVal == 1.0:
             if fullText[89][0] == '#' and fullText[90][0] == '#':
                 fullText[89] = fullText[89][1:]     # Remove the pound at 1.0
                 fullText[90] = fullText[90][1:]
@@ -595,40 +664,53 @@ def job_file_create(jobnum, path, high=0, **kwargs):
     
     # Now we can cycle through the easier changes desired:
     if 'mstar' in kwargs:                           # Stellar mass parameter
-        fullText[14] = (fullText[14][:11] + str(kwargs['mstar']) + 
-                        fullText[14][-11:])
+        mstarVal = kwargs['mstar']
+        del kwargs['mstar']
+        fullText[14] = fullText[14][:11] + str(mstarVal) + fullText[14][-11:]
     if 'tstar' in kwargs:                           # Photosphere temp parameter
-        fullText[15] = (fullText[15][:11] + str(kwargs['tstar']) + 
-                        fullText[15][-8:])
+        tstarVal = kwargs['tstar']
+        del kwargs['tstar']
+        fullText[15] = fullText[15][:11] + str(tstarVal) + fullText[15][-8:]
     if 'rstar' in kwargs:                           # Stellar radius parameter
-        fullText[16] = (fullText[16][:11] + str(kwargs['rstar']) + 
-                        fullText[16][-12:])
+        rstarVal = kwargs['rstar']
+        del kwargs['rstar']
+        fullText[16] = fullText[16][:11] + str(rstarVal) + fullText[16][-12:]
     if 'dist' in kwargs:                            # Stellar distance parameter
-        fullText[17] = (fullText[17][:15] + str(kwargs['dist']) + 
-                        fullText[17][-14:])
+        distVal = kwargs['dist']
+        del kwargs['dist']
+        fullText[17] = fullText[17][:15] + str(distVal) + fullText[17][-14:]
     if 'mdot' in kwargs:                            # Accretion rate parameter
-        fullText[18] = (fullText[18][:10] + str(kwargs['mdot']) + 
-                        fullText[18][-15:])
+        mdotVal = kwargs['mdot']
+        del kwargs['mdot']
+        fullText[18] = fullText[18][:10] + str(mdotVal) + fullText[18][-15:]
     if 'tshock' in kwargs:                          # Shock temp parameter
-        fullText[21] = fullText[21][:11] + str(float(kwargs['tshock'])) + '\n'
+        tshockVal = kwargs['tshock']
+        del kwargs['tshock']
+        fullText[21] = fullText[21][:11] + str(float(tshockVal)) + '\n'
     if 'alpha' in kwargs:                           # Alpha viscosity parameter
-        fullText[24] = (fullText[24][:11] + str(kwargs['alpha']) + 
-                        fullText[24][-2:])
+        alphaVal = kwargs['alpha']
+        del kwargs['alpha']
+        fullText[24] = fullText[24][:11] + str(alphaVal) + fullText[24][-2:]
     if 'mui' in kwargs:                             # Cosine of inclination
-        fullText[25] = (fullText[25][:9] + str(kwargs['mui']) + 
-                        fullText[25][-32:])
+        muiVal = kwargs['mui']
+        del kwargs['mui']
+        fullText[25] = fullText[25][:9] + str(muiVal) + fullText[25][-32:]
     if 'rdisk' in kwargs:                           # Outer disk radius parameter
-        fullText[31] = (fullText[31][:11] + str(kwargs['rdisk']) + 
-                        fullText[31][-25:])
+        rdiskVal = kwargs['rdisk']
+        del kwargs['rdisk']
+        fullText[31] = fullText[31][:11] + str(rdiskVal) + fullText[31][-25:]
     if 'labelend' in kwargs:                        # Labelend on output files
-        fullText[159] = (fullText[159][:14] + str(kwargs['labelend']) + 
-                        fullText[159][-2:])
+        labelVal = kwargs['labelend']
+        del kwargs['labelend']
+        fullText[159] = fullText[159][:14] + str(labelVal) + fullText[159][-2:]
     if 'temp' in kwargs:                            # Inner wall temp parameter
-        fullText[562] = (fullText[562][:9] + str(kwargs['temp']) + 
-                        fullText[562][-2:])
+        tempVal = kwargs['temp']
+        del kwargs['temp']
+        fullText[562] = fullText[562][:9] + str(tempVal) + fullText[562][-2:]
     if 'altinh' in kwargs:                          # Inner wall height parameter
-        fullText[563] = (fullText[563][:11] + str(kwargs['altinh']) + 
-                        fullText[563][-2:])
+        altVal = kwargs['altinh']
+        del kwargs['altinh']
+        fullText[563] = fullText[563][:11] + str(altVal) + fullText[563][-2:]
     
     # Once all changes have been made, we just create a new job file:
     if high:
@@ -638,6 +720,11 @@ def job_file_create(jobnum, path, high=0, **kwargs):
     newJob      = open(path+'job'+string_num, 'w')
     newJob.writelines(fullText)
     newJob.close()
+    
+    # Lastly, check for unused kwargs that may have been misspelled:
+    if len(kwargs) != 0:
+        print('JOB_FILE_CREATE: Unused kwargs, could be mistakes:')
+        print kwargs.keys()
     
     return
     
@@ -670,7 +757,7 @@ def job_optthin_create(jobn, path, high=0, **kwargs):
         fracamc - fraction of amorphous carbon by mass
         
         Some can still be included, such as dust grain compositions. They just aren't
-        currently supported.
+        currently supported. If any supplied kwargs are unused, it will print at the end.
     
     OUTPUT
     A job file with the name job_optthinXXX, where XXX is the three-string number from 001 - 999. If
@@ -690,64 +777,66 @@ def job_optthin_create(jobn, path, high=0, **kwargs):
     # Now we run through the list of changes desired and change them:
     # If we want to change amax:
     if 'amax' in kwargs:
+        amaxVal = kwargs['amax']
+        del kwargs['amax']
         # amax is a commented out switch, so we need to know the desired size:
-        if kwargs['amax'] == 0.25:
+        if amaxVal == 0.25:
             pass
-        elif kwargs['amax'] == 0.05 or kwargs['amax'] == '0p05':
+        elif amaxVal == 0.05 or amaxVal == '0p05':
             if fullText[28][0] == '#':
                 fullText[28] = fullText[28][1:]     # Remove the pound at 0.05
                 fullText[30] = '#' + fullText[30]   # Add the pound at 0.25
             else:
                 raise ValueError('JOB_OPTTHIN_CREATE: There is a comment problem at amax = 0.05!')
-        elif kwargs['amax'] == 0.1 or kwargs['amax'] == '0p1':
+        elif amaxVal == 0.1 or amaxVal == '0p1':
             if fullText[29][0] == '#':
                 fullText[29] = fullText[29][1:]     # Remove the pound at 0.1
                 fullText[30] = '#' + fullText[30]   # Add the pound at 0.25
             else:
                 raise ValueError('JOB_OPTTHIN_CREATE: There is a comment problem at amax = 0.1!')
-        elif kwargs['amax'] == 1.0 or kwargs['amax'] == '1p0':
+        elif amaxVal == 1.0 or amaxVal == '1p0':
             if fullText[31][0] == '#':
                 fullText[31] = fullText[31][1:]     # Remove the pound at 1.0
                 fullText[30] = '#' + fullText[30]   # Add the pound at 0.25
             else:
                 raise ValueError('JOB_OPTTHIN_CREATE: There is a comment problem at amax = 1.0!')
-        elif kwargs['amax'] == 2.0 or kwargs['amax'] == '2p0':
+        elif amaxVal == 2.0 or amaxVal == '2p0':
             if fullText[32][0] == '#':
                 fullText[32] = fullText[32][1:]     # Remove the pound at 2.0
                 fullText[30] = '#' + fullText[30]   # Add the pound at 0.25
             else:
                 raise ValueError('JOB_OPTTHIN_CREATE: There is a comment problem at amax = 2.0!')
-        elif kwargs['amax'] == 3.0 or kwargs['amax'] == '3p0':
+        elif amaxVal == 3.0 or amaxVal == '3p0':
             if fullText[33][0] == '#':
                 fullText[33] = fullText[33][1:]     # Remove the pound at 3.0
                 fullText[30] = '#' + fullText[30]   # Add the pound at 0.25
             else:
                 raise ValueError('JOB_OPTTHIN_CREATE: There is a comment problem at amax = 3.0!')
-        elif kwargs['amax'] == 4.0 or kwargs['amax'] == '4p0':
+        elif amaxVal == 4.0 or amaxVal == '4p0':
             if fullText[34][0] == '#':
                 fullText[34] = fullText[34][1:]     # Remove the pound at 4.0
                 fullText[30] = '#' + fullText[30]   # Add the pound at 0.25
             else:
                 raise ValueError('JOB_OPTTHIN_CREATE: There is a comment problem at amax = 4.0!')
-        elif kwargs['amax'] == 5.0 or kwargs['amax'] == '5p0':
+        elif amaxVal == 5.0 or amaxVal == '5p0':
             if fullText[35][0] == '#':
                 fullText[35] = fullText[35][1:]     # Remove the pound at 5.0
                 fullText[30] = '#' + fullText[30]   # Add the pound at 0.25
             else:
                 raise ValueError('JOB_OPTTHIN_CREATE: There is a comment problem at amax = 5.0!')
-        elif kwargs['amax'] == 10.0 or kwargs['amax'] == '10':
+        elif amaxVal == 10.0 or amaxVal == '10':
             if fullText[36][0] == '#':
                 fullText[36] = fullText[36][1:]     # Remove the pound at 10.0
                 fullText[30] = '#' + fullText[30]   # Add the pound at 0.25
             else:
                 raise ValueError('JOB_OPTTHIN_CREATE: There is a comment problem at amax = 10!')
-        elif kwargs['amax'] == 100.0 or kwargs['amax'] == '100':
+        elif amaxVal == 100.0 or amaxVal == '100':
             if fullText[37][0] == '#':
                 fullText[37] = fullText[37][1:]     # Remove the pound at 100.0
                 fullText[30] = '#' + fullText[30]   # Add the pound at 0.25
             else:
                 raise ValueError('JOB_OPTTHIN_CREATE: There is a comment problem at amax = 100!')
-        elif kwargs['amax'] == 1000.0 or kwargs['amax'] == '1mm':
+        elif amaxVal == 1000.0 or amaxVal == '1mm':
             if fullText[38][0] == '#':
                 fullText[38] = fullText[38][1:]     # Remove the pound at 1mm
                 fullText[30] = '#' + fullText[30]   # Add the pound at 0.25
@@ -758,50 +847,65 @@ def job_optthin_create(jobn, path, high=0, **kwargs):
     
     # Now we can cycle through the easier changes desired:    
     if 'labelend' in kwargs:                        # Labelend for output files
-        fullText[5] = (fullText[5][:14] + str(kwargs['labelend']) + 
-                        fullText[5][-27:])
+        labelVal = kwargs['labelend']
+        del kwargs['labelend']
+        fullText[5] = fullText[5][:14] + str(labelVal) + fullText[5][-27:]
     if 'tstar' in kwargs:                           # Stellar effective temperature
-        fullText[8] = (fullText[8][:10] + str(kwargs['tstar']) + 
-                        fullText[8][-42:])
+        tstarVal = kwargs['tstar']
+        del kwargs['tstar']
+        fullText[8] = fullText[8][:10] + str(tstarVal) + fullText[8][-42:]
     if 'rstar' in kwargs:                           # Stellar radius (solar units)
-        fullText[9] = (fullText[9][:10] + str(kwargs['rstar']) + 
-                        fullText[9][-43:])
+        rstarVal = kwargs['rstar']
+        del kwargs['rstar']
+        fullText[9] = fullText[9][:10] + str(rstarVal) + fullText[9][-43:]
     if 'dist' in kwargs:                            # Distance (in pc)
-        fullText[10] = (fullText[10][:15] + str(kwargs['dist']) + 
-                        fullText[10][-25:])
+        distVal = kwargs['dist']
+        del kwargs['dist']
+        fullText[10] = fullText[10][:15] + str(distVal) + fullText[10][-25:]
     if 'mui' in kwargs:                             # Cosine of inclination angle
-        fullText[13] = (fullText[13][:9] + str(kwargs['mui']) + 
-                        fullText[13][-54:])
+        muiVal = kwargs['mui']
+        del kwargs['mui']
+        fullText[13] = fullText[13][:9] + str(muiVal) + fullText[13][-54:]
     if 'rout' in kwargs:                            # Outer radius
-        fullText[14] = (fullText[14][:10] + str(kwargs['rout']) + 
-                        fullText[14][-21:])
+        routVal = kwargs['rout']
+        del kwargs['rout']
+        fullText[14] = fullText[14][:10] + str(routVal) + fullText[14][-21:]
     if 'rin' in kwargs:                             # Inner radius
-        fullText[15] = (fullText[15][:9] + str(kwargs['rin']) + 
-                        fullText[15][-26:])
-    if 'tau' in kwargs:                             # Optical depth (?)
-        fullText[17] = (fullText[17][:12] + str(kwargs['tau']) + 
-                        fullText[17][-4:])
+        rinVal = kwargs['rin']
+        del kwargs['rin']
+        fullText[15] = fullText[15][:9] + str(rinVal) + fullText[15][-26:]
+    if 'tau' in kwargs:                             # Optical depth
+        tauVal = kwargs['tau']
+        del kwargs['tau']
+        fullText[17] = fullText[17][:12] + str(tauVal) + fullText[17][-4:]
     if 'power' in kwargs:                           # No idea what this one is, hah.
-        fullText[18] = (fullText[18][:11] + str(kwargs['power']) + 
-                        fullText[18][-2:])
+        powVal = kwargs['power']
+        del kwargs['power']
+        fullText[18] = fullText[18][:11] + str(powVal) + fullText[18][-2:]
     if 'fudgeorg' in kwargs:                        # No idea what this is either...
-        fullText[19] = (fullText[19][:14] + str(kwargs['fudgeorg']) + 
-                        fullText[19][-2:])
+        orgVal = kwargs['fudgeorg']
+        del kwargs['fudgeorg']
+        fullText[19] = fullText[19][:14] + str(orgVal) + fullText[19][-2:]
     if 'fudgetroi' in kwargs:                       # Or this...
-        fullText[20] = (fullText[20][:15] + str(kwargs['fudgetroi']) + 
-                        fullText[20][-2:])
+        troiVal = kwargs['fudgetroi']
+        del kwargs['fudgetroi']
+        fullText[20] = fullText[20][:15] + str(troiVal) + fullText[20][-2:]
     if 'fracsil' in kwargs:                         # Fraction of silicates by mass
-        fullText[21] = (fullText[21][:13] + str(kwargs['fracsil']) + 
-                        fullText[21][-4:])
+        fsilVal = kwargs['fracsil']
+        del kwargs['fracsil']
+        fullText[21] = fullText[21][:13] + str(fsilVal) + fullText[21][-4:]
     if 'fracent' in kwargs:                         # Fraction of enstatite by mass
-        fullText[22] = (fullText[22][:13] + str(kwargs['fracent']) + 
-                        fullText[22][-2:])
+        fentVal = kwargs['fracent']
+        del kwargs['fracent']
+        fullText[22] = fullText[22][:13] + str(fentVal) + fullText[22][-2:]
     if 'fracforst' in kwargs:                       # Fraction of forsterite by mass
-        fullText[23] = (fullText[23][:15] + str(kwargs['fracforst']) + 
-                        fullText[23][-2:])
+        forstVal = kwargs['fracforst']
+        del kwargs['fracforst']
+        fullText[23] = fullText[23][:15] + str(forstVal) + fullText[23][-2:]
     if 'fracamc' in kwargs:                         # Fraction of amorphous carbon by mass
-        fullText[24] = (fullText[24][:13] + str(kwargs['fracamc']) + 
-                        fullText[24][-2:])
+        famcVal = kwargs['fracamc']
+        del kwargs['fracamc']
+        fullText[24] = fullText[24][:13] + str(famcVal) + fullText[24][-2:]
     
     # Once all changes have been made, we just create a new optthin job file:
     if high:
@@ -811,6 +915,11 @@ def job_optthin_create(jobn, path, high=0, **kwargs):
     newJob      = open(path+'job_optthin'+string_num, 'w')
     newJob.writelines(fullText)
     newJob.close()
+    
+    # Lastly, check for unused kwargs that may have been misspelled:
+    if len(kwargs) != 0:
+        print('JOB_OPTTHIN_CREATE: Unused kwargs, could be mistakes:')
+        print kwargs.keys()
     
     return
 
@@ -826,7 +935,6 @@ def model_rchi2(objname, model, path):
     
     OUTPUT
     rchi_sq: The value for the reduced chi-squared test on the model.
-    
     """
     
     # Read in observations:
@@ -853,10 +961,11 @@ def model_rchi2(objname, model, path):
     
     # The tough part -- figuring out the proper weights. Let's take a stab:
     weights     = np.ones(len(wavelength))      # Start with all ones
-    #weights[wavelength <= 8.5] = 25             # Some weight to early phot/spec data
-    #weights[wavelength >= 22]  = 60             # More weight to outer piece of SED
-    weights[wavelength <= 22]  = 75
-    weights[wavelength <= 1] = 1
+    weights[wavelength <= 8.5] = 25             # Some weight to early phot/spec data
+    weights[wavelength >= 22]  = 60             # More weight to outer piece of SED
+    
+    #weights[wavelength <= 22]  = 75            # These weights good for opt. thin dust comparisons
+    #weights[wavelength <= 1] = 1
     
     # Calculate the reduced chi-squared value for the model:
     chi_arr     = (flux - modelFlux) * weights / flux
@@ -869,7 +978,7 @@ class TTS_Model(object):
     """
     (By Dan)
     Contains all the data and meta-data for a TTS Model from the D'Alessio et al. 2006 models. The input
-    will come from fits files that are created via Connor's IDL collate procedure.
+    will come from fits files that are created via Connor's collate.py.
     
     ATTRIBUTES
     name: Name of the object (e.g., CVSO109, V410Xray-2, ZZ_Tau, etc.).
@@ -902,7 +1011,6 @@ class TTS_Model(object):
     __init__: initializes an instance of the class, and loads in the relevant data.
     calc_total: Calculates the "total" (combined) flux based on which components you want, then loads it into
                 the data attribute under the key 'total'.
-    
     """
     
     def __init__(self, name, jobn, dpath=datapath, full_trans=1, high=0, headonly=0):
@@ -916,15 +1024,11 @@ class TTS_Model(object):
         full_trans: BOOLEAN -- if 1 (True) will load data as a full or transitional disk. If 0 (False), as a pre-trans. disk.
         high: BOOLEAN -- if 1 (True), the model file being read in has a 4-digit number string rather than 3-digit string.
         headonly: BOOLEAN -- if 1 (True) will only load the header metadata into the object, and will not load in the model data.
-        
         """
         
-        # First, sanity check:
-        if full_trans != 0 and full_trans != 1:
-            raise ValueError('__INIT__: full_trans is a boolean -- must be a 0 or 1!')
         # Read in the fits file:
         if high:
-            stringnum   = numCheck(jobn, high=True)
+            stringnum   = numCheck(jobn, high=1)
         else:
             stringnum   = numCheck(jobn)                                # Convert jobn to the proper string format
         fitsname        = dpath + name + '_' + stringnum + '.fits'      # Fits filename, preceeded by the path from paths section
@@ -932,7 +1036,7 @@ class TTS_Model(object):
         header          = HDUlist[0].header                             # Stores the header in this variable
         
         # The new Python version of collate flips array indices, so must identify which collate.py was used:
-        if len(HDUlist[0].data[:,0]) == 4:
+        if 'EXTAXIS' in header.keys() or 'NOEXT' in header.keys():
             new         = 1
         else:
             new         = 0
@@ -963,6 +1067,7 @@ class TTS_Model(object):
         self.enstatit   = header['ENSTATIT']
         self.rin        = header['RIN']
         self.dpath      = dpath
+        self.high       = high
         
         # Initialize data attributes for this object using nested dictionaries:
         # wl is the wavelength (corresponding to all three flux arrays). Phot is the stellar photosphere emission.
@@ -970,11 +1075,15 @@ class TTS_Model(object):
         if headonly == 0:
             if full_trans:
                 if new:
-                    self.data   = {'wl': HDUlist[0].data[0,:], 'phot': HDUlist[0].data[1,:], 'iwall': HDUlist[0].data[2,:], \
-                                   'disk': HDUlist[0].data[3,:]}
+                    try:
+                        self.extcorr = HDUlist[0].data[4,:]
+                    except IndexError:
+                        self.extcorr = None
+                    self.data = {'wl': HDUlist[0].data[0,:], 'phot': HDUlist[0].data[1,:], 'iwall': HDUlist[0].data[2,:], \
+                                 'disk': HDUlist[0].data[3,:]}
                 else:
-                    self.data   = {'wl': HDUlist[0].data[:,0], 'phot': HDUlist[0].data[:,1], 'iwall': HDUlist[0].data[:,2], \
-                                   'disk': HDUlist[0].data[:,3]}
+                    self.data = {'wl': HDUlist[0].data[:,0], 'phot': HDUlist[0].data[:,1], 'iwall': HDUlist[0].data[:,2], \
+                                 'disk': HDUlist[0].data[:,3]}
             else:
                 # If a pre-transitional disk, have to match the job to the inner-wall job.
                 z           = raw_input('What altinh value are you using for the inner wall? ')
@@ -986,15 +1095,19 @@ class TTS_Model(object):
                 else:
                     outfits = fits.open(dpath + name + '_' + match[0] + '.fits')
                     if new:
-                        self.data   = {'wl': HDUlist[0].data[0,:], 'phot': HDUlist[0].data[1,:], 'owall': HDUlist[0].data[2,:], \
-                                       'disk': HDUlist[0].data[3,:], 'iwall': outfits[0].data[2,:]}
+                        try:
+                            self.extcorr = HDUlist[0].data[4,:]
+                        except IndexError:
+                            self.extcorr = None
+                        self.data = {'wl': HDUlist[0].data[0,:], 'phot': HDUlist[0].data[1,:], 'owall': HDUlist[0].data[2,:], \
+                                     'disk': HDUlist[0].data[3,:], 'iwall': outfits[0].data[2,:]}
                     else:
-                        self.data   = {'wl': HDUlist[0].data[:,0], 'phot': HDUlist[0].data[:,1], 'owall': HDUlist[0].data[:,2], \
-                                       'disk': HDUlist[0].data[:,3], 'iwall': outfits[0].data[:,2]}
-            
+                        self.data = {'wl': HDUlist[0].data[:,0], 'phot': HDUlist[0].data[:,1], 'owall': HDUlist[0].data[:,2], \
+                                     'disk': HDUlist[0].data[:,3], 'iwall': outfits[0].data[:,2]}
+    
         HDUlist.close()                                                 # Closes the fits file, since we no longer need it
         
-    def calc_total(self, phot=1, wall=1, disk=1, owall=0, dust=0, verbose=1, dust_high=0):
+    def calc_total(self, phot=1, wall=1, disk=1, owall=0, dust=0, verbose=1, dust_high=0, altinh=None, save=0):
         """
         (By Dan)
         Calculates the total flux for our object (likely to be used for plotting and/or analysis). Once calculated, it
@@ -1006,43 +1119,92 @@ class TTS_Model(object):
         disk: BOOLEAN -- if 1 (True), will add disk component to the combined model.
         owall: BOOLEAN -- if 1 (True), will add outer wall component to the combined model (relevant for pre-trans only).
         dust: INTEGER -- Must correspond to an opt. thin dust model number linked to a fits file in datapath directory.
-        
+        verbose: BOOLEAN -- if 1 (True), will print messages of what it's doing.
+        dust_high: BOOLEAN -- if 1 (True), will look for a 4 digit valued dust file.
+        altinh: FLOAT/INT -- if not None, will multiply inner wall flux by that amount.
+        save: BOOLEAN -- if 1 (True), will print out the components to a .dat file.
         """
         
         # Add the components to the total flux, checking each component along the way:
         totFlux         = np.zeros(len(self.data['wl']), dtype=float)
+        componentNumber = 1
         if phot:
             if verbose:
                 print 'CALC_TOTAL: Adding photosphere component to the total flux.'
             totFlux     = totFlux + self.data['phot']
+            componentNumber += 1
         if wall:
             if verbose:
                 print 'CALC_TOTAL: Adding inner wall component to the total flux.'
-            totFlux     = totFlux + self.data['iwall']
+            if altinh != None:
+                newWall = self.data['iwall'] * altinh
+                totFlux = totFlux + newWall                  # Note: if save=1, will save iwall w/ the original altinh.
+            else:
+                totFlux = totFlux + self.data['iwall']
+            componentNumber += 1
         if disk:
             if verbose:
                 print 'CALC_TOTAL: Adding disk component to the total flux.'
             totFlux     = totFlux + self.data['disk']
+            componentNumber += 1
         if owall:
             if verbose:
                 print 'CALC_TOTAL: Adding outer wall component to the total flux.'
             totFlux     = totFlux + self.data['owall']
+            componentNumber += 1
         if dust != 0:
             try:
                 dustNum = numCheck(dust, high=dust_high)
             except:
                 raise ValueError('CALC_TOTAL: Error! Dust input not a valid integer')
-                
             dustHDU     = fits.open(self.dpath+self.name+'_OTD_'+dustNum+'.fits')
             if verbose:
                 print 'CALC_TOTAL: Adding optically thin dust component to total flux.'
             self.data['dust']   = dustHDU[0].data[1,:]
             totFlux     = totFlux + self.data['dust']
+            componentNumber += 1
         
         # Add the total flux array to the data dictionary attribute:
         if verbose:
             print 'CALC_TOTAL: Total flux calculated. Adding to the data structure.'
         self.data['total'] = totFlux
+        componentNumber += 1
+        
+        # If save, create an output file with these components printed out:
+        if save:
+            outputTable = np.zeros([len(totFlux), componentNumber])
+
+            # Populate the header and data table with the components and names:
+            headerStr   = 'Wavelength, Total Flux, '
+            outputTable[:, 0] = self.data['wl']
+            outputTable[:, 1] = self.data['total']
+            colNum      = 2
+            if phot:
+                headerStr += 'Photosphere, '
+                outputTable[:, colNum] = self.data['phot']
+                colNum += 1
+            if wall:
+                headerStr += 'Inner Wall, '
+                outputTable[:, colNum] = self.data['iwall']
+                colNum += 1
+            if owall:
+                headerStr += 'Outer Wall, '
+                outputTable[:, colNum] = self.data['owall']
+                colNum += 1
+            if disk:
+                headerStr += 'Outer Disk, '
+                outputTable[:, colNum] = self.data['disk']
+                colNum += 1
+            if dust != 0:
+                headerStr += 'Opt. Thin Dust, '
+                outputTable[:, colNum] = self.data['dust']
+                colNum += 1
+            
+            # Trim the header and save:
+            headerStr  = headerStr[0:-2]
+            filestring = '%s%s_%s.dat' % (self.dpath, self.name, numCheck(self.jobn, high=self.high))
+            np.savetxt(filestring, outputTable, fmt='%.3e', delimiter=', ', header=headerStr, comments='#')
+        
         return
     
 class TTS_Obs(object):
@@ -1063,7 +1225,6 @@ class TTS_Obs(object):
     add_spectra: Adds an entry (or replaces an entry) in the spectra attribute dictionary.
     add_photometry: Adds an entry (or replaces an entry) in the photometry attribute dictionary.
     SPPickle: Saves the object as a pickle to be reloaded later. This will not work if you've reloaded the module before saving.
-    
     """
     
     def __init__(self, name):
@@ -1073,7 +1234,6 @@ class TTS_Obs(object):
         
         INPUTS
         name: The name of the target for which the data represents.
-        
         """
         # Initalize attributes as empty. Can add to the data later.
         self.name       = name
@@ -1091,7 +1251,6 @@ class TTS_Obs(object):
         wlarr: The wavelenth array of the data. Should be in microns. Note: this is not checked.
         fluxarr: The flux array of the data. Should be in erg s-1 cm-2. Note: this is not checked.
         errors: (optional) The array of flux errors. Should be in erg s-1 cm-2. If None (default), will not add.
-        
         """
         
         # Check if the telescope data already exists in the data file:
@@ -1132,7 +1291,6 @@ class TTS_Obs(object):
         fluxarr: The flux array corresponding to the data. Should be in erg s-1 cm-2. Note: this is not checked.
         errors: (optional) The array of flux errors. Should be in erg s-1 cm-2. If None (default), will not add.
         ulim: BOOLEAN -- whether or not this photometric data is or is not an upper limit.
-        
         """
         
         # Check if the telescope data already exists in the data file:
@@ -1176,7 +1334,6 @@ class TTS_Obs(object):
         
         INPUTS
         picklepath: The path where you will save the pickle. I recommend datapath for simplicity.
-        
         """
         # Check whether or not the pickle already exists:
         pathlist        = filelist(picklepath)
