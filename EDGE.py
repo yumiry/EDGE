@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Created by Dan Feldman and Connor Robinson for analyzing data from Espaillat Group research models.
-# Last updated: 7/19/15 by Dan
+# Last updated: 7/20/15 by Dan
 
 #-------------------------------------------IMPORT RELEVANT MODELS-------------------------------------------
 import numpy as np
@@ -261,7 +261,7 @@ def convertMag(value, band, jy='False'):
         fluxJ       = 8.36 * (10.0**(value / -2.5))
         wavelength  = 22.09
     else:
-        raise ValueError('CONVERTOPTMAG: Unknown Band given. Cannot convert.')
+        raise ValueError('CONVERTMAG: Unknown Band given. Cannot convert.')
     
     if jy == 'False':
         # Next, convert to flux from Janskys:
@@ -323,16 +323,16 @@ def look(obs, model=None, jobn=None, save=0, colkeys=None, diskcomb=0):
         colkeys         = ['p', 'r', 'o', 'b', 'c', 'm', 'g', 'y', 'l', 'k', 't', 'w', 'v', 'd', 'n', 'e', 'j', 's']    # Order in which colors are used
 
     # Let the plotting begin!
-    plt.figure(1)#,figsize=(3,4))
+    plt.figure(1)
+    
     # Plot the spectra first:
     for sind, skey in enumerate(speckeys):
         plt.plot(obs.spectra[skey]['wl'], obs.spectra[skey]['lFl'], color=colors[colkeys[sind]] , linewidth=2.0, label=skey)
+    
     # Next is the photometry:
     for pind, pkey in enumerate(photkeys):
         # If an upper limit only:
         if pkey in obs.ulim:
-            #plt.arrow(obs.photometry[pkey]['wl'], obs.photometry[pkey]['lFl'], 0.0, -1.*(obs.photometry[pkey]['lFl']/2.), \
-            #          color=colors[colkeys[pind+len(speckeys)]], length_includes_head=False)
             plt.plot(obs.photometry[pkey]['wl'], obs.photometry[pkey]['lFl'], 'v', \
                      color=colors[colkeys[pind+len(speckeys)]], markersize=7, label=pkey)
         # If not an upper limit, plot as normal:
@@ -341,8 +341,10 @@ def look(obs, model=None, jobn=None, save=0, colkeys=None, diskcomb=0):
                 plt.plot(obs.photometry[pkey]['wl'], obs.photometry[pkey]['lFl'], 'o', mfc='w', mec=colors[colkeys[pind+len(speckeys)]], mew=1.0,\
                          markersize=7, label=pkey)
             else:
-                plt.errorbar(obs.photometry[pkey]['wl'], obs.photometry[pkey]['lFl'], yerr=obs.photometry[pkey]['err'], mec=colors[colkeys[pind+len(speckeys)]], \
-                             fmt='o', mfc='w', mew=1.0, markersize=7, ecolor=colors[colkeys[pind+len(speckeys)]], elinewidth=2.0, capsize=2.0, label=pkey)
+                plt.errorbar(obs.photometry[pkey]['wl'], obs.photometry[pkey]['lFl'], yerr=obs.photometry[pkey]['err'], \
+                             mec=colors[colkeys[pind+len(speckeys)]], fmt='o', mfc='w', mew=1.0, markersize=7, \
+                             ecolor=colors[colkeys[pind+len(speckeys)]], elinewidth=2.0, capsize=2.0, label=pkey)
+    
     # Now, the model (if a model supplied):
     if model != None:
         modkeys         = model.data.keys()
@@ -375,6 +377,7 @@ def look(obs, model=None, jobn=None, save=0, colkeys=None, diskcomb=0):
         plt.figtext(0.75,0.73,'IWallT = '+ str(model.temp), color='#815201', size='9')
         plt.figtext(0.75,0.70,'Altinh = '+ str(model.altinh), color='#5B3A00', size='9')
         plt.figtext(0.75,0.67,'Mdot = '+ str(model.mdot), color='#3D2C02', size='9')
+        
     # Lastly, the remaining parameters to plotting (mostly aesthetics):
     plt.xscale('log')
     plt.yscale('log')
@@ -384,6 +387,8 @@ def look(obs, model=None, jobn=None, save=0, colkeys=None, diskcomb=0):
     plt.xlabel(r'${\rm {\bf \lambda}\; (\mu m)}$')
     plt.title(obs.name.upper())
     plt.legend(loc=3)
+    
+    # Should we save or should we plot?
     if save:
         if type(jobn) != int:
             raise ValueError('LOOK: Jobn must be an integer if you wish to save the plot.')
@@ -406,8 +411,8 @@ def searchJobs(target, dpath=datapath, **kwargs):
               will loop through each of these kwargs and see if they all match.
     
     OUTPUTS
-    job_matches: A numpy array containing all the jobs that matched the kwargs. Can be an empty array, single value array, or multivalued array. Will
-                 contain matches by their integer number.
+    job_matches: A numpy array containing all the jobs that matched the kwargs. Can be an empty array, single value array, or 
+                 multivalued array. Will contain matches by their integer number.
     """
     
     job_matches         = np.array([], dtype='string')
@@ -455,6 +460,7 @@ def loadPickle(name, picklepath=datapath, num=None):
     OUTPUT
     pickle: The object containing the data loaded in from the pickle.
     """
+    
     if num == None:
         # Check if there is more than one
         flist           = filelist(picklepath)
@@ -972,7 +978,7 @@ class TTS_Model(object):
     """
     (By Dan)
     Contains all the data and meta-data for a TTS Model from the D'Alessio et al. 2006 models. The input
-    will come from fits files that are created via Connor's IDL collate procedure.
+    will come from fits files that are created via Connor's collate.py.
     
     ATTRIBUTES
     name: Name of the object (e.g., CVSO109, V410Xray-2, ZZ_Tau, etc.).
@@ -1020,12 +1026,9 @@ class TTS_Model(object):
         headonly: BOOLEAN -- if 1 (True) will only load the header metadata into the object, and will not load in the model data.
         """
         
-        # First, sanity check:
-        if full_trans != 0 and full_trans != 1:
-            raise ValueError('__INIT__: full_trans is a boolean -- must be a 0 or 1!')
         # Read in the fits file:
         if high:
-            stringnum   = numCheck(jobn, high=True)
+            stringnum   = numCheck(jobn, high=1)
         else:
             stringnum   = numCheck(jobn)                                # Convert jobn to the proper string format
         fitsname        = dpath + name + '_' + stringnum + '.fits'      # Fits filename, preceeded by the path from paths section
@@ -1064,6 +1067,7 @@ class TTS_Model(object):
         self.enstatit   = header['ENSTATIT']
         self.rin        = header['RIN']
         self.dpath      = dpath
+        self.high       = high
         
         # Initialize data attributes for this object using nested dictionaries:
         # wl is the wavelength (corresponding to all three flux arrays). Phot is the stellar photosphere emission.
@@ -1092,10 +1096,10 @@ class TTS_Model(object):
                     else:
                         self.data   = {'wl': HDUlist[0].data[:,0], 'phot': HDUlist[0].data[:,1], 'owall': HDUlist[0].data[:,2], \
                                        'disk': HDUlist[0].data[:,3], 'iwall': outfits[0].data[:,2]}
-            
+    
         HDUlist.close()                                                 # Closes the fits file, since we no longer need it
         
-    def calc_total(self, phot=1, wall=1, disk=1, owall=0, dust=0, verbose=1, dust_high=0):
+    def calc_total(self, phot=1, wall=1, disk=1, owall=0, dust=0, verbose=1, dust_high=0, altinh=None, save=0):
         """
         (By Dan)
         Calculates the total flux for our object (likely to be used for plotting and/or analysis). Once calculated, it
@@ -1107,42 +1111,92 @@ class TTS_Model(object):
         disk: BOOLEAN -- if 1 (True), will add disk component to the combined model.
         owall: BOOLEAN -- if 1 (True), will add outer wall component to the combined model (relevant for pre-trans only).
         dust: INTEGER -- Must correspond to an opt. thin dust model number linked to a fits file in datapath directory.
+        verbose: BOOLEAN -- if 1 (True), will print messages of what it's doing.
+        dust_high: BOOLEAN -- if 1 (True), will look for a 4 digit valued dust file.
+        altinh: FLOAT/INT -- if not None, will multiply inner wall flux by that amount.
+        save: BOOLEAN -- if 1 (True), will print out the components to a .dat file.
         """
         
         # Add the components to the total flux, checking each component along the way:
         totFlux         = np.zeros(len(self.data['wl']), dtype=float)
+        componentNumber = 1
         if phot:
             if verbose:
                 print 'CALC_TOTAL: Adding photosphere component to the total flux.'
             totFlux     = totFlux + self.data['phot']
+            componentNumber += 1
         if wall:
             if verbose:
                 print 'CALC_TOTAL: Adding inner wall component to the total flux.'
-            totFlux     = totFlux + self.data['iwall']
+            if altinh != None:
+                newWall = self.data['iwall'] * altinh
+                totFlux = totFlux + newWall                  # Note: if save=1, will save iwall w/ the original altinh.
+            else:
+                totFlux = totFlux + self.data['iwall']
+            componentNumber += 1
         if disk:
             if verbose:
                 print 'CALC_TOTAL: Adding disk component to the total flux.'
             totFlux     = totFlux + self.data['disk']
+            componentNumber += 1
         if owall:
             if verbose:
                 print 'CALC_TOTAL: Adding outer wall component to the total flux.'
             totFlux     = totFlux + self.data['owall']
+            componentNumber += 1
         if dust != 0:
             try:
                 dustNum = numCheck(dust, high=dust_high)
             except:
                 raise ValueError('CALC_TOTAL: Error! Dust input not a valid integer')
-                
             dustHDU     = fits.open(self.dpath+self.name+'_OTD_'+dustNum+'.fits')
             if verbose:
                 print 'CALC_TOTAL: Adding optically thin dust component to total flux.'
             self.data['dust']   = dustHDU[0].data[1,:]
             totFlux     = totFlux + self.data['dust']
+            componentNumber += 1
         
         # Add the total flux array to the data dictionary attribute:
         if verbose:
             print 'CALC_TOTAL: Total flux calculated. Adding to the data structure.'
         self.data['total'] = totFlux
+        componentNumber += 1
+        
+        # If save, create an output file with these components printed out:
+        if save:
+            outputTable = np.zeros([len(totFlux), componentNumber])
+
+            # Populate the header and data table with the components and names:
+            headerStr   = 'Wavelength, Total Flux, '
+            outputTable[:, 0] = self.data['wl']
+            outputTable[:, 1] = self.data['total']
+            colNum      = 2
+            if phot:
+                headerStr += 'Photosphere, '
+                outputTable[:, colNum] = self.data['phot']
+                colNum += 1
+            if wall:
+                headerStr += 'Inner Wall, '
+                outputTable[:, colNum] = self.data['iwall']
+                colNum += 1
+            if owall:
+                headerStr += 'Outer Wall, '
+                outputTable[:, colNum] = self.data['owall']
+                colNum += 1
+            if disk:
+                headerStr += 'Outer Disk, '
+                outputTable[:, colNum] = self.data['disk']
+                colNum += 1
+            if dust != 0:
+                headerStr += 'Opt. Thin Dust, '
+                outputTable[:, colNum] = self.data['dust']
+                colNum += 1
+            
+            # Trim the header and save:
+            headerStr  = headerStr[0:-2]
+            filestring = '%s%s_%s.dat' % (self.dpath, self.name, numCheck(self.jobn, high=self.high))
+            np.savetxt(filestring, outputTable, fmt='%.3e', delimiter=', ', header=headerStr, comments='#')
+        
         return
     
 class TTS_Obs(object):
