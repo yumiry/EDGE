@@ -1076,14 +1076,14 @@ class TTS_Model(object):
             if full_trans:
                 if new:
                     try:
-                        self.data   = {'wl': HDUlist[0].data[0,:], 'phot': HDUlist[0].data[1,:], 'iwall': HDUlist[0].data[2,:], \
-                                       'disk': HDUlist[0].data[3,:], 'extcorr': HDUlist[0].data[4,:]}
+                        self.extcorr = HDUlist[0].data[4,:]
                     except IndexError:
-                        self.data   = {'wl': HDUlist[0].data[0,:], 'phot': HDUlist[0].data[1,:], 'iwall': HDUlist[0].data[2,:], \
-                                       'disk': HDUlist[0].data[3,:]}
+                        self.extcorr = None
+                    self.data = {'wl': HDUlist[0].data[0,:], 'phot': HDUlist[0].data[1,:], 'iwall': HDUlist[0].data[2,:], \
+                                 'disk': HDUlist[0].data[3,:]}
                 else:
-                    self.data       = {'wl': HDUlist[0].data[:,0], 'phot': HDUlist[0].data[:,1], 'iwall': HDUlist[0].data[:,2], \
-                                       'disk': HDUlist[0].data[:,3]}
+                    self.data = {'wl': HDUlist[0].data[:,0], 'phot': HDUlist[0].data[:,1], 'iwall': HDUlist[0].data[:,2], \
+                                 'disk': HDUlist[0].data[:,3]}
             else:
                 # If a pre-transitional disk, have to match the job to the inner-wall job.
                 z           = raw_input('What altinh value are you using for the inner wall? ')
@@ -1096,14 +1096,14 @@ class TTS_Model(object):
                     outfits = fits.open(dpath + name + '_' + match[0] + '.fits')
                     if new:
                         try:
-                            self.data   = {'wl': HDUlist[0].data[0,:], 'phot': HDUlist[0].data[1,:], 'owall': HDUlist[0].data[2,:], \
-                                           'disk': HDUlist[0].data[3,:], 'iwall': outfits[0].data[2,:], 'extcorr': HDUlist[0].data[4,:]}
+                            self.extcorr = HDUlist[0].data[4,:]
                         except IndexError:
-                            self.data   = {'wl': HDUlist[0].data[0,:], 'phot': HDUlist[0].data[1,:], 'owall': HDUlist[0].data[2,:], \
-                                           'disk': HDUlist[0].data[3,:], 'iwall': outfits[0].data[2,:]}
+                            self.extcorr = None
+                        self.data = {'wl': HDUlist[0].data[0,:], 'phot': HDUlist[0].data[1,:], 'owall': HDUlist[0].data[2,:], \
+                                     'disk': HDUlist[0].data[3,:], 'iwall': outfits[0].data[2,:]}
                     else:
-                        self.data       = {'wl': HDUlist[0].data[:,0], 'phot': HDUlist[0].data[:,1], 'owall': HDUlist[0].data[:,2], \
-                                           'disk': HDUlist[0].data[:,3], 'iwall': outfits[0].data[:,2]}
+                        self.data = {'wl': HDUlist[0].data[:,0], 'phot': HDUlist[0].data[:,1], 'owall': HDUlist[0].data[:,2], \
+                                     'disk': HDUlist[0].data[:,3], 'iwall': outfits[0].data[:,2]}
     
         HDUlist.close()                                                 # Closes the fits file, since we no longer need it
         
