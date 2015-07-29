@@ -1256,13 +1256,15 @@ class PTD_Model(TTS_Model):
     
     def dataInit(self, jobw=None, **searchKwargs):
         # Either supply jobw of inner wall model or supply kwargs to be used in a search.
+        # Jobw should be a string of 'XXX' or 'XXXX' based on the filename.
         
         if jobw == None and len(searchKwargs) == 0:
             raise IOError('DATAINIT: You must enter either a job number or kwargs to match or search for an inner wall.')
         
         if jobw != None:
-            try:
-                jobwstr = numCheck(jobw)
+            fitsname = self.dpath + self.name + '_' + jobw + '.fits'
+            HDUlist  = fits.open(fitsname)
+            
         
         else:
             # When doing the searchJobs() call, use **searchKwargs to pass that as the keyword arguments to searchJobs!
