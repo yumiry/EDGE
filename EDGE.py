@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Created by Dan Feldman and Connor Robinson for analyzing data from Espaillat Group research models.
-# Last updated: 7/20/15 by Dan
+# Last updated: 7/29/15 by Dan
 
 #-------------------------------------------IMPORT RELEVANT MODELS-------------------------------------------
 import numpy as np
@@ -1036,7 +1036,7 @@ class TTS_Model(object):
         header          = HDUlist[0].header                             # Stores the header in this variable
         
         # The new Python version of collate flips array indices, so must identify which collate.py was used:
-        if len(HDUlist[0].data[:,0]) == 4:
+        if 'EXTAXIS' in header.keys() or 'NOEXT' in header.keys():
             new         = 1
         else:
             new         = 0
@@ -1075,11 +1075,15 @@ class TTS_Model(object):
         if headonly == 0:
             if full_trans:
                 if new:
-                    self.data   = {'wl': HDUlist[0].data[0,:], 'phot': HDUlist[0].data[1,:], 'iwall': HDUlist[0].data[2,:], \
-                                   'disk': HDUlist[0].data[3,:]}
+                    try:
+                        self.data   = {'wl': HDUlist[0].data[0,:], 'phot': HDUlist[0].data[1,:], 'iwall': HDUlist[0].data[2,:], \
+                                       'disk': HDUlist[0].data[3,:], 'extcorr': HDUlist[0].data[4,:]}
+                    except IndexError:
+                        self.data   = {'wl': HDUlist[0].data[0,:], 'phot': HDUlist[0].data[1,:], 'iwall': HDUlist[0].data[2,:], \
+                                       'disk': HDUlist[0].data[3,:]}
                 else:
-                    self.data   = {'wl': HDUlist[0].data[:,0], 'phot': HDUlist[0].data[:,1], 'iwall': HDUlist[0].data[:,2], \
-                                   'disk': HDUlist[0].data[:,3]}
+                    self.data       = {'wl': HDUlist[0].data[:,0], 'phot': HDUlist[0].data[:,1], 'iwall': HDUlist[0].data[:,2], \
+                                       'disk': HDUlist[0].data[:,3]}
             else:
                 # If a pre-transitional disk, have to match the job to the inner-wall job.
                 z           = raw_input('What altinh value are you using for the inner wall? ')
@@ -1091,11 +1095,15 @@ class TTS_Model(object):
                 else:
                     outfits = fits.open(dpath + name + '_' + match[0] + '.fits')
                     if new:
-                        self.data   = {'wl': HDUlist[0].data[0,:], 'phot': HDUlist[0].data[1,:], 'owall': HDUlist[0].data[2,:], \
-                                       'disk': HDUlist[0].data[3,:], 'iwall': outfits[0].data[2,:]}
+                        try:
+                            self.data   = {'wl': HDUlist[0].data[0,:], 'phot': HDUlist[0].data[1,:], 'owall': HDUlist[0].data[2,:], \
+                                           'disk': HDUlist[0].data[3,:], 'iwall': outfits[0].data[2,:], 'extcorr': HDUlist[0].data[4,:]}
+                        except IndexError:
+                            self.data   = {'wl': HDUlist[0].data[0,:], 'phot': HDUlist[0].data[1,:], 'owall': HDUlist[0].data[2,:], \
+                                           'disk': HDUlist[0].data[3,:], 'iwall': outfits[0].data[2,:]}
                     else:
-                        self.data   = {'wl': HDUlist[0].data[:,0], 'phot': HDUlist[0].data[:,1], 'owall': HDUlist[0].data[:,2], \
-                                       'disk': HDUlist[0].data[:,3], 'iwall': outfits[0].data[:,2]}
+                        self.data       = {'wl': HDUlist[0].data[:,0], 'phot': HDUlist[0].data[:,1], 'owall': HDUlist[0].data[:,2], \
+                                           'disk': HDUlist[0].data[:,3], 'iwall': outfits[0].data[:,2]}
     
         HDUlist.close()                                                 # Closes the fits file, since we no longer need it
         
