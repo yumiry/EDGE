@@ -230,8 +230,8 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
         #Apply extinction from outer disk on inner disk and star if the noextinct flag is not set
         if noextinct == 0:
             dataarr = np.array([phot['col1'], phot['col2'], wall['col2'], angle['col4'], angle['col6']])
-            dataarr[1] *=np.exp(dataarr[4])
-            dataarr[2] *=np.exp(dataarr[4])
+            dataarr[1] *=np.exp((-1)*dataarr[4])
+            dataarr[2] *=np.exp((-1)*dataarr[4])
 
         elif noextinct == 1:
             dataarr = np.array([phot['col1'], phot['col2'], wall['col2'], angle['col4']])
