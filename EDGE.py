@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Created by Dan Feldman and Connor Robinson for analyzing data from Espaillat Group research models.
-# Last updated: 7/20/15 by Dan
+# Last updated: 7/31/15 by Dan
 
 #-------------------------------------------IMPORT RELEVANT MODELS-------------------------------------------
 import numpy as np
@@ -33,7 +33,6 @@ figurepath      = '/Users/danfeldman/Orion_Research/Orion_Research/CVSO_4Objs/Mo
 # A function is considered independent if it does not reference any other function or class in this module.
 def filelist(path):
     """
-    (By Dan)
     Returns a list of files in a directory. Pops out hidden values.
     
     INPUTS
@@ -53,9 +52,7 @@ def filelist(path):
     return flist
 
 def deci_to_time(ra=None, dec=None):
-    """
-    (By Dan)
-    
+    """    
     Converts decimal values of ra and dec into arc time coordinates.
     
     INPUTS
@@ -116,7 +113,6 @@ def deci_to_time(ra=None, dec=None):
 
 def convertFreq(value):
     """
-    (By Dan)
     Convert a frequency value in s-1 to wavelength in microns. Should also work with arrays.
     
     INPUTS
@@ -133,7 +129,6 @@ def convertFreq(value):
 
 def convertJy(value, wavelength):
     """
-    (By Dan)
     Convert a flux in Janskys to erg s-1 cm-2. Should also work with flux/wl arrays of same size.
     
     INPUTS
@@ -151,7 +146,6 @@ def convertJy(value, wavelength):
 
 def convertMag(value, band, jy='False'):
     """
-    (By Dan)
     Converts a magnitude into a flux in erg s-1 cm-2. To use this for an array, use np.vectorize().
     Currently handles:
         UBVRI
@@ -271,7 +265,6 @@ def convertMag(value, band, jy='False'):
 
 def numCheck(num, high=0):
     """
-    (By Dan)
     Takes a number between 0 and 9999 and converts it into a 3 or 4 digit string. E.g., 2 --> '002', 12 --> '012'
     
     INPUT
@@ -294,7 +287,6 @@ def numCheck(num, high=0):
 # A function is considered dependent if it utilizes either the above independent functions, or the classes below.
 def look(obs, model=None, jobn=None, save=0, colkeys=None, diskcomb=0):
     """
-    (By Dan)
     Creates a plot of a model and the observations for a given target.
     
     INPUTS
@@ -366,6 +358,8 @@ def look(obs, model=None, jobn=None, save=0, colkeys=None, diskcomb=0):
                 plt.plot(model.data['wl'], model.data['disk'], ls='--', c='#8B0A1E', linewidth=2.0, label='Disk')
         if 'dust' in modkeys:
             plt.plot(model.data['wl'], model.data['dust'], ls='--', c='#F80303', linewidth=2.0, label='Opt. Thin Dust')
+        if 'scatt' in modkeys:
+            plt.plot(model.data['wl'], model.data['scatt'], ls='--', c='#7A6F6F', linewidth=2.0, label='Scattered Light')
         if 'total' in modkeys:
             plt.plot(model.data['wl'], model.data['total'], c='k', linewidth=2.0, label='Combined Model')
         # Now, the relevant meta-data:
@@ -402,7 +396,6 @@ def look(obs, model=None, jobn=None, save=0, colkeys=None, diskcomb=0):
 
 def searchJobs(target, dpath=datapath, **kwargs):
     """
-    (By Dan)
     Searches through the job file outputs to determine which jobs (if any) matches the set of input parameters.
     
     INPUTS
@@ -449,7 +442,6 @@ def searchJobs(target, dpath=datapath, **kwargs):
 
 def loadPickle(name, picklepath=datapath, num=None):
     """
-    (By Dan)
     Loads in a pickle saved from the TTS_Obs class.
     
     INPUTS
@@ -477,7 +469,6 @@ def loadPickle(name, picklepath=datapath, num=None):
 
 def job_file_create(jobnum, path, high=0, **kwargs):
     """
-    (By Dan)
     Creates a new job file that is used by the D'Alessio Model.
     
     INPUTS
@@ -730,7 +721,6 @@ def job_file_create(jobnum, path, high=0, **kwargs):
     
 def job_optthin_create(jobn, path, high=0, **kwargs):
     """
-    (By Dan)
     Creates a new optically thin dust job file.
     
     INPUTS
@@ -925,7 +915,6 @@ def job_optthin_create(jobn, path, high=0, **kwargs):
 
 def model_rchi2(objname, model, path):
     """
-    (By Dan)
     Calculates a reduced chi-squared goodness of fit.
     
     INPUTS
@@ -976,7 +965,6 @@ def model_rchi2(objname, model, path):
 #---------------------------------------------------CLASSES------------------------------------------------------
 class TTS_Model(object):
     """
-    (By Dan)
     Contains all the data and meta-data for a TTS Model from the D'Alessio et al. 2006 models. The input
     will come from fits files that are created via Connor's collate.py.
     
@@ -1008,6 +996,7 @@ class TTS_Model(object):
     dpath: Path where the data files are located.
     high: Whether or not the data was part of a 1000+ grid.
     data: The data for each component inside the model.
+    extcorr: The self-extinction correction. If not carried out, saved as None.
     
     METHODS
     __init__: Initializes an instance of the class, and loads in the relevant metadata.
@@ -1018,7 +1007,6 @@ class TTS_Model(object):
     
     def __init__(self, name, jobn, dpath=datapath, high=0):
         """
-        (By Dan)
         Initializes instances of this class and loads the relevant data into attributes.
         
         INPUTS
@@ -1065,6 +1053,7 @@ class TTS_Model(object):
         self.rin        = header['RIN']
         self.dpath      = dpath
         self.high       = high
+        self.extcorr    = None
         
         HDUlist.close()
         return
@@ -1081,12 +1070,16 @@ class TTS_Model(object):
         HDUlist         = fits.open(fitsname)
         
         # The new Python version of collate flips array indices, so must identify which collate.py was used:
-        if len(HDUlist[0].data[:,0]) == 4:
+        if 'EXTAXIS' in HDUlist[0].header.keys() or 'NOEXT' in HDUlist[0].header.keys():
             new         = 1
         else:
             new         = 0
 
         if new:
+            try:
+                self.extcorr = HDUlist[0].data[4,:]
+            except IndexError:
+                self.extcorr = None
             self.data   = {'wl': HDUlist[0].data[0,:], 'phot': HDUlist[0].data[1,:], 'iwall': HDUlist[0].data[2,:], \
                            'disk': HDUlist[0].data[3,:]}
         else:
@@ -1112,9 +1105,8 @@ class TTS_Model(object):
                   #      self.data   = {'wl': HDUlist[0].data[:,0], 'phot': HDUlist[0].data[:,1], 'owall': HDUlist[0].data[:,2], \
                    #                    'disk': HDUlist[0].data[:,3], 'iwall': outfits[0].data[:,2]}
         
-    def calc_total(self, phot=1, wall=1, disk=1, owall=0, dust=0, verbose=1, dust_high=0, altinh=None, save=0):
+    def calc_total(self, phot=1, wall=1, disk=1, dust=0, verbose=1, dust_high=0, altinh=None, save=0):
         """
-        (By Dan)
         Calculates the total flux for our object (likely to be used for plotting and/or analysis). Once calculated, it
         will be added to the data attribute for this object. If already calculated, will overwrite.
         
@@ -1122,7 +1114,6 @@ class TTS_Model(object):
         phot: BOOLEAN -- if 1 (True), will add photosphere component to the combined model.
         wall: BOOLEAN -- if 1 (True), will add inner wall component to the combined model.
         disk: BOOLEAN -- if 1 (True), will add disk component to the combined model.
-        owall: BOOLEAN -- if 1 (True), will add outer wall component to the combined model (relevant for pre-trans only).
         dust: INTEGER -- Must correspond to an opt. thin dust model number linked to a fits file in datapath directory.
         verbose: BOOLEAN -- if 1 (True), will print messages of what it's doing.
         dust_high: BOOLEAN -- if 1 (True), will look for a 4 digit valued dust file.
@@ -1152,10 +1143,269 @@ class TTS_Model(object):
                 print 'CALC_TOTAL: Adding disk component to the total flux.'
             totFlux     = totFlux + self.data['disk']
             componentNumber += 1
+        if dust != 0:
+            try:
+                dustNum = numCheck(dust, high=dust_high)
+            except:
+                raise ValueError('CALC_TOTAL: Error! Dust input not a valid integer')
+            dustHDU     = fits.open(self.dpath+self.name+'_OTD_'+dustNum+'.fits')
+            if verbose:
+                print 'CALC_TOTAL: Adding optically thin dust component to total flux.'
+            self.data['dust']   = dustHDU[0].data[1,:]
+            totFlux     = totFlux + self.data['dust']
+            componentNumber += 1
+        
+        # If scattered emission is in the dictionary, add it:
+        if 'scatt' in self.data.keys():
+            scatt       = 1
+            if verbose:
+                print('CALC_TOTAL: Adding scattered light component to the total flux.')
+            totFlux     = totFlux + self.data['scatt']
+            componentNumber += 1
+        
+        # Add the total flux array to the data dictionary attribute:
+        if verbose:
+            print 'CALC_TOTAL: Total flux calculated. Adding to the data structure.'
+        self.data['total'] = totFlux
+        componentNumber += 1
+        
+        # If save, create an output file with these components printed out:
+        if save:
+            outputTable = np.zeros([len(totFlux), componentNumber])
+
+            # Populate the header and data table with the components and names:
+            headerStr   = 'Wavelength, Total Flux, '
+            outputTable[:, 0] = self.data['wl']
+            outputTable[:, 1] = self.data['total']
+            colNum      = 2
+            if phot:
+                headerStr += 'Photosphere, '
+                outputTable[:, colNum] = self.data['phot']
+                colNum += 1
+            if wall:
+                headerStr += 'Inner Wall, '
+                outputTable[:, colNum] = self.data['iwall']
+                colNum += 1
+            if disk:
+                headerStr += 'Outer Disk, '
+                outputTable[:, colNum] = self.data['disk']
+                colNum += 1
+            if dust != 0:
+                headerStr += 'Opt. Thin Dust, '
+                outputTable[:, colNum] = self.data['dust']
+                colNum += 1
+            if scatt:
+                headerStr += 'Scattered Light, '
+                outputTable[:, colNum] = self.data['scatt']
+                colNum += 1
+            
+            # Trim the header and save:
+            headerStr  = headerStr[0:-2]
+            filestring = '%s%s_%s.dat' % (self.dpath, self.name, numCheck(self.jobn, high=self.high))
+            np.savetxt(filestring, outputTable, fmt='%.3e', delimiter=', ', header=headerStr, comments='#')
+        
+        return
+
+class PTD_Model(TTS_Model):
+    """
+    Contains all the data and meta-data for a PTD Model from the D'Alessio et al. 2006 models. The input
+    will come from fits files that are created via Connor's collate.py.
+    
+    ATTRIBUTES
+    name: Name of the object (e.g., CVSO109, V410Xray-2, ZZ_Tau, etc.).
+    jobn: The job number corresponding to this model.
+    mstar: Star's mass.
+    tstar: Star's effective temperature, based on Kenyon and Hartmann 1995.
+    rstar: Star's radius.
+    dist: Distance to the star.
+    mdot: Mass accretion rate.
+    alpha: Alpha parameter (from the viscous alpha disk model).
+    mui: Inclination of the system.
+    rdisk: The outer radius of the disk.
+    amax: The "maximum" grain size in the disk. (or just suspended in the photosphere of the disk?)
+    eps: The epsilon parameter, i.e., the amount of dust settling in the disk.
+    tshock: The temperature of the shock at the stellar photosphere.
+    temp: The temperature at the inner wall (1400 K maximum).
+    altinh: Scale heights of extent of the inner wall.
+    wlcut_an: 
+    wlcut_sc: 
+    nsilcomp: Number of silicate compounds.
+    siltotab: Total silicate abundance.
+    amorf_ol: 
+    amorf_py: 
+    forsteri: Forsterite Fractional abundance.
+    enstatit: Enstatite Fractional abundance.
+    rin: The inner radius in AU.
+    dpath: Path where the data files are located.
+    high: Whether or not the data was part of a 1000+ grid.
+    data: The data for each component inside the model.
+    extcorr: The self-extinction correction. If not carried out, saved as None.
+    
+    METHODS
+    __init__: initializes an instance of the class, and loads in the relevant metadata. No change.
+    dataInit: Loads in the relevant data to the object. This differs from that of TTS_Model.
+    calc_total: Calculates the "total" (combined) flux based on which components you want, then loads it into
+                the data attribute under the key 'total'. This also differs from TTS_Model.
+    """
+    
+    def dataInit(self, jobw=None, **searchKwargs):
+        # Either supply jobw of inner wall model or supply kwargs to be used in a search.
+        # Jobw should be a string of 'XXX' or 'XXXX' based on the filename.
+        
+        if jobw == None and len(searchKwargs) == 0:
+            raise IOError('DATAINIT: You must enter either a job number or kwargs to match or search for an inner wall.')
+        
+        if jobw != None:
+            # The case in which you supplied the job number of the inner wall:
+            fitsname = self.dpath + self.name + '_' + jobw + '.fits'
+            HDUwall  = fits.open(fitsname)
+            
+            # Make sure the inner wall job you supplied is, in fact, an inner wall.
+            if 'NOEXT' not in HDUwall[0].header.keys():
+                raise IOError('DATAINIT: Job you supplied is not an inner wall or needs to be collated again!')
+            
+            # Now, load in the disk data:
+            HDUdata  = fits.open(self.dpath + self.name + '_' + self.jobn + '.fits')
+            header   = HDUdata[0].header
+            
+            # Check if it's an old version or a new version:
+            if 'EXTAXIS' in header.keys() or 'NOEXT' in header.keys():
+                new  = 1
+            else:
+                new  = 0
+            
+            # Depending on old or new version is how we will load in the data. We require the wall be "new":
+            if new:
+                # We will load in the components piecemeal based on the axes present in the header.
+                # First though, we initialize with the wavelength and wall, since they're always present:
+                self.data = ( {'wl': HDUdata[0].data[header['WLAXIS'],:], 
+                               'iwall': HDUwall[0].data[HDUwall[0].header['WALLAXIS'],:]} )
+                
+                # Now we can loop through the remaining possibilities:
+                if 'PHOTAXIS' in header.keys():
+                    self.data['phot'] = HDUdata[0].data[header['PHOTAXIS'],:]
+                else:
+                    print('DATAINIT: Warning: No photosphere data found for ' + self.name)
+                if 'WALLAXIS' in header.keys():
+                    self.data['owall'] = HDUdata[0].data[header['WALLAXIS'],:]
+                else:
+                    print('DATAINIT: Warning: No outer wall data found for ' + self.name)
+                if 'ANGAXIS' in header.keys():
+                    self.data['disk'] = HDUdata[0].data[header['ANGAXIS'],:]
+                else:
+                    print('DATAINIT: Warning: No outer disk data found for ' + self.name)
+                # Remaining components are not always (or almost always) present, so no warning given if missing!
+                if 'SCATAXIS' in header.keys():
+                    self.data['scatt'] = HDUdata[0].data[header['SCATAXIS'],:]
+                if 'EXTAXIS' in header.keys():
+                    self.extcorr       = HDUdata[0].data[header['EXTAXIS'],:]
+            else:
+                self.data = ({'wl': HDUdata[0].data[:,0], 'phot': HDUdata[0].data[:,1], 'owall': HDUdata[0].data[:,2],
+                              'disk': HDUdata[0].data[:,3], 'iwall': HDUwall[0].data[HDUwall[0].header['WALLAXIS'],:]})
+        
+        else:
+            # When doing the searchJobs() call, use **searchKwargs to pass that as the keyword arguments to searchJobs!
+            match = searchJobs(self.name, dpath=self.dpath, **searchKwargs)
+            if len(match) == 0:
+                raise IOError('DATAINIT: No inner wall model matches these parameters!')
+            elif len(match) > 1:
+                raise IOError('DATAINIT: Multiple inner wall models match. Do not know which one to pick.')
+            else:
+                fitsname = self.dpath + self.name + '_' + match[0] + '.fits'
+                HDUwall  = fits.open(fitsname)
+                
+                # Make sure the inner wall job you supplied is, in fact, an inner wall.
+                if 'NOEXT' not in HDUwall[0].header.keys():
+                    raise IOError('DATAINIT: Job found is not an inner wall or needs to be collated again!')
+            
+                # Now, load in the disk data:
+                HDUdata  = fits.open(self.dpath + self.name + '_' + self.jobn + '.fits')
+                header   = HDUdata[0].header
+            
+                # Check if it's an old version or a new version:
+                if 'EXTAXIS' in header.keys() or 'NOEXT' in header.keys():
+                    new  = 1
+                else:
+                    new  = 0
+            
+                # Depending on old or new version is how we will load in the data. We require the wall be "new":
+                if new:
+                    # We will load in the components piecemeal based on the axes present in the header.
+                    # First though, we initialize with the wavelength and wall, since they're always present:
+                    self.data = ( {'wl': HDUdata[0].data[header['WLAXIS'],:], 
+                                   'iwall': HDUwall[0].data[HDUwall[0].header['WALLAXIS'],:]} )
+                
+                    # Now we can loop through the remaining possibilities:
+                    if 'PHOTAXIS' in header.keys():
+                        self.data['phot'] = HDUdata[0].data[header['PHOTAXIS'],:]
+                    else:
+                        print('DATAINIT: Warning: No photosphere data found for ' + self.name)
+                    if 'WALLAXIS' in header.keys():
+                        self.data['owall'] = HDUdata[0].data[header['WALLAXIS'],:]
+                    else:
+                        print('DATAINIT: Warning: No outer wall data found for ' + self.name)
+                    if 'ANGAXIS' in header.keys():
+                        self.data['disk'] = HDUdata[0].data[header['ANGAXIS'],:]
+                    else:
+                        print('DATAINIT: Warning: No outer disk data found for ' + self.name)
+                    # Remaining components are not always (or almost always) present, so no warning given if missing!
+                    if 'SCATAXIS' in header.keys():
+                        self.data['scatt'] = HDUdata[0].data[header['SCATAXIS'],:]
+                    if 'EXTAXIS' in header.keys():
+                        self.extcorr       = HDUdata[0].data[header['EXTAXIS'],:]
+                else:
+                    self.data = ({'wl': HDUdata[0].data[:,0], 'phot': HDUdata[0].data[:,1], 'owall': HDUdata[0].data[:,2],
+                                  'disk': HDUdata[0].data[:,3], 'iwall': HDUwall[0].data[HDUwall[0].header['WALLAXIS'],:]})
+        return
+    
+    def calc_total(self, phot=1, wall=1, disk=1, owall=1, dust=0, verbose=1, dust_high=0, altInner=None, altOuter=None, save=0):
+        """
+        Calculates the total flux for our object (likely to be used for plotting and/or analysis). Once calculated, it
+        will be added to the data attribute for this object. If already calculated, will overwrite.
+        
+        INPUTS
+        phot: BOOLEAN -- if 1 (True), will add photosphere component to the combined model.
+        wall: BOOLEAN -- if 1 (True), will add inner wall component to the combined model.
+        disk: BOOLEAN -- if 1 (True), will add disk component to the combined model.
+        owall: BOOLEAN -- if 1 (True), will add outer wall component to the combined model.
+        dust: INTEGER -- Must correspond to an opt. thin dust model number linked to a fits file in datapath directory.
+        verbose: BOOLEAN -- if 1 (True), will print messages of what it's doing.
+        dust_high: BOOLEAN -- if 1 (True), will look for a 4 digit valued dust file.
+        altInner: FLOAT/INT -- if not None, will multiply inner wall flux by that amount.
+        altOuter: FLOAT/INT -- if not None, will multiply outer wall flux by that amount.
+        save: BOOLEAN -- if 1 (True), will print out the components to a .dat file.
+        """
+        
+        # Add the components to the total flux, checking each component along the way:
+        totFlux         = np.zeros(len(self.data['wl']), dtype=float)
+        componentNumber = 1
+        if phot:
+            if verbose:
+                print 'CALC_TOTAL: Adding photosphere component to the total flux.'
+            totFlux     = totFlux + self.data['phot']
+            componentNumber += 1
+        if wall:
+            if verbose:
+                print 'CALC_TOTAL: Adding inner wall component to the total flux.'
+            if altInner != None:
+                newIWall= self.data['iwall'] * altInner
+                totFlux = totFlux + newIWall                 # Note: if save=1, will save iwall w/ the original altinh.
+            else:
+                totFlux = totFlux + self.data['iwall']
+            componentNumber += 1
+        if disk:
+            if verbose:
+                print 'CALC_TOTAL: Adding disk component to the total flux.'
+            totFlux     = totFlux + self.data['disk']
+            componentNumber += 1
         if owall:
             if verbose:
                 print 'CALC_TOTAL: Adding outer wall component to the total flux.'
-            totFlux     = totFlux + self.data['owall']
+            if altOuter != None:
+                newOWall= self.data['owall'] * altOuter
+                totFlux = totFlux + newOWall                 # Note: if save=1, will save owall w/ the original altinh.
+            else:
+                totFlux     = totFlux + self.data['owall']
             componentNumber += 1
         if dust != 0:
             try:
@@ -1167,6 +1417,14 @@ class TTS_Model(object):
                 print 'CALC_TOTAL: Adding optically thin dust component to total flux.'
             self.data['dust']   = dustHDU[0].data[1,:]
             totFlux     = totFlux + self.data['dust']
+            componentNumber += 1
+        
+        # If scattered emission is in the dictionary, add it:
+        if 'scatt' in self.data.keys():
+            scatt       = 1
+            if verbose:
+                print('CALC_TOTAL: Adding scattered light component to the total flux.')
+            totFlux     = totFlux + self.data['scatt']
             componentNumber += 1
         
         # Add the total flux array to the data dictionary attribute:
@@ -1204,6 +1462,10 @@ class TTS_Model(object):
                 headerStr += 'Opt. Thin Dust, '
                 outputTable[:, colNum] = self.data['dust']
                 colNum += 1
+            if scatt:
+                headerStr += 'Scattered Light, '
+                outputTable[:, colNum] = self.data['scatt']
+                colNum += 1
             
             # Trim the header and save:
             headerStr  = headerStr[0:-2]
@@ -1212,69 +1474,8 @@ class TTS_Model(object):
         
         return
 
-class PTD_Model(TTS_Model):
-    """
-    (By Dan)
-    Contains all the data and meta-data for a PTD Model from the D'Alessio et al. 2006 models. The input
-    will come from fits files that are created via Connor's collate.py.
-    
-    ATTRIBUTES
-    name: Name of the object (e.g., CVSO109, V410Xray-2, ZZ_Tau, etc.).
-    jobn: The job number corresponding to this model.
-    mstar: Star's mass.
-    tstar: Star's effective temperature, based on Kenyon and Hartmann 1995.
-    rstar: Star's radius.
-    dist: Distance to the star.
-    mdot: Mass accretion rate.
-    alpha: Alpha parameter (from the viscous alpha disk model).
-    mui: Inclination of the system.
-    rdisk: The outer radius of the disk.
-    amax: The "maximum" grain size in the disk. (or just suspended in the photosphere of the disk?)
-    eps: The epsilon parameter, i.e., the amount of dust settling in the disk.
-    tshock: The temperature of the shock at the stellar photosphere.
-    temp: The temperature at the inner wall (1400 K maximum).
-    altinh: Scale heights of extent of the inner wall.
-    wlcut_an: 
-    wlcut_sc: 
-    nsilcomp: Number of silicate compounds.
-    siltotab: Total silicate abundance.
-    amorf_ol: 
-    amorf_py: 
-    forsteri: Forsterite Fractional abundance.
-    enstatit: Enstatite Fractional abundance.
-    rin: The inner radius in AU.
-    dpath: Path where the data files are located.
-    high: Whether or not the data was part of a 1000+ grid.
-    data: The data for each component inside the model.
-    
-    METHODS
-    __init__: initializes an instance of the class, and loads in the relevant metadata.
-    dataInit: Loads in the relevant data to the object. This differs from that of TTS_Model.
-    calc_total: Calculates the "total" (combined) flux based on which components you want, then loads it into
-                the data attribute under the key 'total'.
-    """
-    
-    def dataInit(self, jobw=None, **searchKwargs):
-        # Either supply jobw of inner wall model or supply kwargs to be used in a search.
-        # Jobw should be a string of 'XXX' or 'XXXX' based on the filename.
-        
-        if jobw == None and len(searchKwargs) == 0:
-            raise IOError('DATAINIT: You must enter either a job number or kwargs to match or search for an inner wall.')
-        
-        if jobw != None:
-            fitsname = self.dpath + self.name + '_' + jobw + '.fits'
-            HDUlist  = fits.open(fitsname)
-            
-        
-        else:
-            # When doing the searchJobs() call, use **searchKwargs to pass that as the keyword arguments to searchJobs!
-
-
-
-
 class TTS_Obs(object):
     """
-    (By Dan)
     Contains all the observational data for a given target system. Allows you to create a pickle with the data, so it can
     be reloaded in at a future time without the need to re-initialize the object. However, to open up the pickle, you will
     need to have this source code where Python can access it.
@@ -1294,7 +1495,6 @@ class TTS_Obs(object):
     
     def __init__(self, name):
         """
-        (By Dan)
         Initializes instances of the class and loads in data to the proper attributes.
         
         INPUTS
@@ -1308,7 +1508,6 @@ class TTS_Obs(object):
         
     def add_spectra(self, scope, wlarr, fluxarr, errors=None):
         """
-        (By Dan)
         Adds an entry to the spectra attribute.
         
         INPUTS
@@ -1347,7 +1546,6 @@ class TTS_Obs(object):
     
     def add_photometry(self, scope, wlarr, fluxarr, errors=None, ulim=0):
         """
-        (By Dan)
         Adds an entry to the photometry attribute.
         
         INPUTS
@@ -1391,7 +1589,6 @@ class TTS_Obs(object):
     
     def SPPickle(self, picklepath):
         """
-        (By Dan)
         Saves the object as a pickle. Damn it Jim, I'm a doctor not a pickle farmer!
         
         WARNING: If you reload the module BEFORE you save the observations as a pickle, this will NOT work! I'm not
