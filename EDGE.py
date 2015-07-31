@@ -366,6 +366,8 @@ def look(obs, model=None, jobn=None, save=0, colkeys=None, diskcomb=0):
                 plt.plot(model.data['wl'], model.data['disk'], ls='--', c='#8B0A1E', linewidth=2.0, label='Disk')
         if 'dust' in modkeys:
             plt.plot(model.data['wl'], model.data['dust'], ls='--', c='#F80303', linewidth=2.0, label='Opt. Thin Dust')
+        if 'scatt' in modkeys:
+            plt.plot(model.data['wl'], model.data['scatt'], ls='--', c='#7A6F6F', linewidth=2.0, label='Scattered Light')
         if 'total' in modkeys:
             plt.plot(model.data['wl'], model.data['total'], c='k', linewidth=2.0, label='Combined Model')
         # Now, the relevant meta-data:
