@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Created by Dan Feldman and Connor Robinson for analyzing data from Espaillat Group research models.
-# Last updated: 7/29/15 by Dan
+# Last updated: 7/31/15 by Dan
 
 #-------------------------------------------IMPORT RELEVANT MODELS-------------------------------------------
 import numpy as np
@@ -26,7 +26,7 @@ plt.rc('figure', autolayout=True)
 # Folders where model output data and observational data can be found:
 datapath        = '/Users/danfeldman/Orion_Research/Orion_Research/CVSO_4Objs/Models/CVSO109PT2/'
 #figurepath      = '/Users/danfeldman/Orion_Research/Orion_Research/CVSO_4Objs/Look_SEDs/CVSO90PT/'
-figurepath      = '/Users/danfeldman/Orion_Research/Orion_Research/CVSO_4Objs/Models/Full_CVSO_Grid/CVSO58_sil/'
+figurepath      = '/Users/danfeldman/Orion_Research/Orion_Research/CVSO_4Objs/Models/Full_CVSO_Grid/CVSO90_sil/'
 #deredpath       = '/Users/danfeldman/Orion_Research/Dereddening_Codes/starparam/'           # De-redden magnitude path
 
 #---------------------------------------------INDEPENDENT FUNCTIONS----------------------------------------------
@@ -1039,7 +1039,10 @@ class TTS_Model(object):
         if 'EXTAXIS' in header.keys() or 'NOEXT' in header.keys():
             new         = 1
         else:
-            new         = 0
+            if len(HDUlist[0].data) == 4:
+                new     = 1
+            else:
+                new     = 0
         
         # Initialize meta-data attributes for this object:
         self.name       = name
@@ -1075,12 +1078,27 @@ class TTS_Model(object):
         if headonly == 0:
             if full_trans:
                 if new:
-                    try:
-                        self.extcorr = HDUlist[0].data[4,:]
-                    except IndexError:
-                        self.extcorr = None
-                    self.data = {'wl': HDUlist[0].data[0,:], 'phot': HDUlist[0].data[1,:], 'iwall': HDUlist[0].data[2,:], \
-                                 'disk': HDUlist[0].data[3,:]}
+                    # Need to figure out which components exist, and load them in based on locations in the header:
+                    self.data = {'wl': HDUlist[0].data[header['WLAXIS'],:]}         # Wavelength should always exist
+                    
+                    # Now loop through the various components:
+                    if 'PHOTAXIS' in header.keys():
+                        self.data['phot'] = HDUlist[0].data[header['PHOTAXIS'],:]
+                    else:
+                        print('__INIT__: Warning: No photosphere data found for ' + self.name)
+                    if 'WALLAXIS' in header.keys():
+                        self.data['iwall'] = HDUlist[0].data[header['WALLAXIS'],:]
+                    else:
+                        print('__INIT__: Warning: No inner wall data found for ' + self.name)
+                    if 'ANGAXIS' in header.keys():
+                        self.data['disk'] = HDUlist[0].data[header['ANGAXIS'],:]
+                    else:
+                        print('__INIT__: Warning: No outer disk data found for ' + self.name)
+                    # Components left are not always present, so no warning given if they are missing!
+                    if 'SCATAXIS' in header.keys():
+                        self.data['scatt'] = HDUlist[0].data[header['SCATAXIS'],:]
+                    if 'EXTAXIS' in header.keys():
+                        self.extcorr = HDUlist[0].data[header['EXTAXIS'],:]
                 else:
                     self.data = {'wl': HDUlist[0].data[:,0], 'phot': HDUlist[0].data[:,1], 'iwall': HDUlist[0].data[:,2], \
                                  'disk': HDUlist[0].data[:,3]}
@@ -1095,12 +1113,24 @@ class TTS_Model(object):
                 else:
                     outfits = fits.open(dpath + name + '_' + match[0] + '.fits')
                     if new:
-                        try:
-                            self.extcorr = HDUlist[0].data[4,:]
-                        except IndexError:
-                            self.extcorr = None
-                        self.data = {'wl': HDUlist[0].data[0,:], 'phot': HDUlist[0].data[1,:], 'owall': HDUlist[0].data[2,:], \
-                                     'disk': HDUlist[0].data[3,:], 'iwall': outfits[0].data[2,:]}
+                        # Same looping process as in a full or transitional disk, except iwall from outfits:
+                        self.data = {'wl': HDUlist[0].data[header['WLAXIS'],:], 'iwall': outfits[0].data[header['WALLAXIS'],:]}
+                        if 'PHOTAXIS' in header.keys():
+                            self.data['phot'] = HDUlist[0].data[header['PHOTAXIS'],:]
+                        else:
+                            print('__INIT__: Warning: No photosphere data found for ' + self.name)
+                        if 'WALLAXIS' in header.keys():
+                            self.data['owall'] = HDUlist[0].data[header['WALLAXIS'],:]
+                        else:
+                            print('__INIT__: Warning: No outer wall data found for ' + self.name)
+                        if 'ANGAXIS' in header.keys():
+                            self.data['disk'] = HDUlist[0].data[header['ANGAXIS'],:]
+                        else:
+                            print('__INIT__: Warning: No outer disk data found for ' + self.name)
+                        if 'SCATAXIS' in header.keys():
+                            self.data['scatt'] = HDUlist[0].data[header['SCATAXIS'],:]
+                        if 'EXTAXIS' in header.keys():
+                            self.extcorr = HDUlist[0].data[header['EXTAXIS'],:]
                     else:
                         self.data = {'wl': HDUlist[0].data[:,0], 'phot': HDUlist[0].data[:,1], 'owall': HDUlist[0].data[:,2], \
                                      'disk': HDUlist[0].data[:,3], 'iwall': outfits[0].data[:,2]}
@@ -1163,6 +1193,14 @@ class TTS_Model(object):
             self.data['dust']   = dustHDU[0].data[1,:]
             totFlux     = totFlux + self.data['dust']
             componentNumber += 1
+        
+        # If scattered emission is in the dictionary, add it:
+        if 'scatt' in self.data.keys():
+            if verbose:
+                print 'CALC_TOTAL: Adding scattered light component to the total flux.'
+            totFlux     = totFlux + self.data['scatt']
+            componentNumber += 1
+            
         
         # Add the total flux array to the data dictionary attribute:
         if verbose:
