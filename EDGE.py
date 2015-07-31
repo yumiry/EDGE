@@ -1198,6 +1198,7 @@ class TTS_Model(object):
         
         # If scattered emission is in the dictionary, add it:
         if 'scatt' in self.data.keys():
+            scatt       = 1
             if verbose:
                 print 'CALC_TOTAL: Adding scattered light component to the total flux.'
             totFlux     = totFlux + self.data['scatt']
@@ -1238,6 +1239,10 @@ class TTS_Model(object):
             if dust != 0:
                 headerStr += 'Opt. Thin Dust, '
                 outputTable[:, colNum] = self.data['dust']
+                colNum += 1
+            if scatt:
+                headerStr += 'Scattered Light, '
+                outputTable[:, colNum] = self.data['scatt']
                 colNum += 1
             
             # Trim the header and save:
