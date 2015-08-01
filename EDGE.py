@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Created by Dan Feldman and Connor Robinson for analyzing data from Espaillat Group research models.
-# Last updated: 7/31/15 by Dan
+# Last updated: 8/1/15 by Dan
 
 #-------------------------------------------IMPORT RELEVANT MODELS-------------------------------------------
 import numpy as np
@@ -27,7 +27,6 @@ plt.rc('figure', autolayout=True)
 datapath        = '/Users/danfeldman/Orion_Research/Orion_Research/CVSO_4Objs/Models/CVSO109PT2/'
 #figurepath      = '/Users/danfeldman/Orion_Research/Orion_Research/CVSO_4Objs/Look_SEDs/CVSO90PT/'
 figurepath      = '/Users/danfeldman/Orion_Research/Orion_Research/CVSO_4Objs/Models/Full_CVSO_Grid/CVSO58_sil/'
-#deredpath       = '/Users/danfeldman/Orion_Research/Dereddening_Codes/starparam/'           # De-redden magnitude path
 
 #---------------------------------------------INDEPENDENT FUNCTIONS----------------------------------------------
 # A function is considered independent if it does not reference any other function or class in this module.
@@ -919,7 +918,7 @@ def model_rchi2(objname, model, path):
     
     INPUTS
     objname: The name of the object to match for observational data.
-    model: The model to test. Must be an instance of TTS_Model().
+    model: The model to test. Must be an instance of TTS_Model(), with a calculated total.
     path: The path containing the observations.
     
     OUTPUT
@@ -1014,7 +1013,6 @@ class TTS_Model(object):
         jobn: Job number corresponding to the model being loaded into the object. Again, must match convention.
         full_trans: BOOLEAN -- if 1 (True) will load data as a full or transitional disk. If 0 (False), as a pre-trans. disk.
         high: BOOLEAN -- if 1 (True), the model file being read in has a 4-digit number string rather than 3-digit string.
-        headonly: BOOLEAN -- if 1 (True) will only load the header metadata into the object, and will not load in the model data.
         """
         
         # Read in the fits file:
@@ -1059,51 +1057,53 @@ class TTS_Model(object):
         return
     
     def dataInit(self):
-        # Initialize data attributes for this object using nested dictionaries:
-        # wl is the wavelength (corresponding to all three flux arrays). Phot is the stellar photosphere emission.
-        # iWall is the flux from the inner wall. Disk is the emission from the angle file.
+        """
+        Initialize data attributes for this object using nested dictionaries:
+        wl is the wavelength (corresponding to all three flux arrays). Phot is the stellar photosphere emission.
+        iWall is the flux from the inner wall. Disk is the emission from the angle file.
+        """
         if high:
             stringnum   = numCheck(self.jobn, high=self.high)
         else:
             stringnum   = numCheck(self.jobn)
         fitsname        = self.dpath + self.name + '_' + stringnum + '.fits'
-        HDUlist         = fits.open(fitsname)
+        HDUdata         = fits.open(fitsname)
         
         # The new Python version of collate flips array indices, so must identify which collate.py was used:
-        if 'EXTAXIS' in HDUlist[0].header.keys() or 'NOEXT' in HDUlist[0].header.keys():
+        if 'EXTAXIS' in HDUdata[0].header.keys() or 'NOEXT' in HDUdata[0].header.keys():
             new         = 1
         else:
             new         = 0
 
         if new:
-            try:
-                self.extcorr = HDUlist[0].data[4,:]
-            except IndexError:
-                self.extcorr = None
-            self.data   = {'wl': HDUlist[0].data[0,:], 'phot': HDUlist[0].data[1,:], 'iwall': HDUlist[0].data[2,:], \
-                           'disk': HDUlist[0].data[3,:]}
+            # We will load in the components piecemeal based on the axes present in the header.
+            # First though, we initialize with the wavelength array, since it's always present:
+            self.data = {'wl': HDUdata[0].data[header['WLAXIS'],:]}
+            
+            # Now we can loop through the remaining possibilities:
+            if 'PHOTAXIS' in header.keys():
+                self.data['phot'] = HDUdata[0].data[header['PHOTAXIS'],:]
+            else:
+                print('DATAINIT: Warning: No photosphere data found for ' + self.name)
+            if 'WALLAXIS' in header.keys():
+                self.data['iwall'] = HDUdata[0].data[header['WALLAXIS'],:]
+            else:
+                print('DATAINIT: Warning: No outer wall data found for ' + self.name)
+            if 'ANGAXIS' in header.keys():
+                self.data['disk'] = HDUdata[0].data[header['ANGAXIS'],:]
+            else:
+                print('DATAINIT: Warning: No outer disk data found for ' + self.name)
+            # Remaining components are not always (or almost always) present, so no warning given if missing!
+            if 'SCATAXIS' in header.keys():
+                self.data['scatt'] = HDUdata[0].data[header['SCATAXIS'],:]
+            if 'EXTAXIS' in header.keys():
+                self.extcorr       = HDUdata[0].data[header['EXTAXIS'],:]
         else:
-            self.data   = {'wl': HDUlist[0].data[:,0], 'phot': HDUlist[0].data[:,1], 'iwall': HDUlist[0].data[:,2], \
-                           'disk': HDUlist[0].data[:,3]}
+            self.data   = {'wl': HDUdata[0].data[:,0], 'phot': HDUdata[0].data[:,1], 'iwall': HDUdata[0].data[:,2], \
+                           'disk': HDUdata[0].data[:,3]}
         
-        HDUlist.close()
+        HDUdata.close()
         return
-         #   else:
-                # If a pre-transitional disk, have to match the job to the inner-wall job.
-          #      z           = raw_input('What altinh value are you using for the inner wall? ')
-           #     match       = searchJobs(name, dpath=dpath, amaxs=header['AMAXS'], eps=header['EPS'], alpha=header['ALPHA'], mdot=header['MDOT'], altinh=int(z#),rdisk=1, temp=1400)
-            #    if len(match) == 0:
-             #       raise IOError('__INIT__: No inner wall model matches these parameters.')
-              #  elif len(match) >1:
-               #     raise IOError('__INIT__: Multiple inner wall models match. Do not know which one to pick.')
-            #    else:
-             #       outfits = fits.open(dpath + name + '_' + match[0] + '.fits')
-              #      if new:
-               #         self.data   = {'wl': HDUlist[0].data[0,:], 'phot': HDUlist[0].data[1,:], 'owall': HDUlist[0].data[2,:], \
-                #                       'disk': HDUlist[0].data[3,:], 'iwall': outfits[0].data[2,:]}
-                 #   else:
-                  #      self.data   = {'wl': HDUlist[0].data[:,0], 'phot': HDUlist[0].data[:,1], 'owall': HDUlist[0].data[:,2], \
-                   #                    'disk': HDUlist[0].data[:,3], 'iwall': outfits[0].data[:,2]}
         
     def calc_total(self, phot=1, wall=1, disk=1, dust=0, verbose=1, dust_high=0, altinh=None, save=0):
         """
@@ -1356,6 +1356,7 @@ class PTD_Model(TTS_Model):
                 else:
                     self.data = ({'wl': HDUdata[0].data[:,0], 'phot': HDUdata[0].data[:,1], 'owall': HDUdata[0].data[:,2],
                                   'disk': HDUdata[0].data[:,3], 'iwall': HDUwall[0].data[HDUwall[0].header['WALLAXIS'],:]})
+        HDUdata.close()
         return
     
     def calc_total(self, phot=1, wall=1, disk=1, owall=1, dust=0, verbose=1, dust_high=0, altInner=None, altOuter=None, save=0):
