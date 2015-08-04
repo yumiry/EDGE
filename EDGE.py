@@ -1082,7 +1082,8 @@ class TTS_Model(object):
         """
         Initialize data attributes for this object using nested dictionaries:
         wl is the wavelength (corresponding to all three flux arrays). Phot is the stellar photosphere emission.
-        iWall is the flux from the inner wall. Disk is the emission from the angle file.
+        iWall is the flux from the inner wall. Disk is the emission from the angle file. Scatt is the scattered
+        light emission. Loads in self-extinction array if available.
         """
         
         stringnum    = numCheck(self.jobn, high=self.high)
@@ -1289,8 +1290,22 @@ class PTD_Model(TTS_Model):
     """
     
     def dataInit(self, altname=None, jobw=None, highWall=0, **searchKwargs):
-        # Either supply jobw of inner wall model or supply kwargs to be used in a search.
-        # Jobw should be a string of 'XXX' or 'XXXX' based on the filename.
+        """
+        Initialize data attributes for this object using nested dictionaries:
+        wl is the wavelength (corresponding to all three flux arrays). Phot is the stellar photosphere emission.
+        iwall is the flux from the inner wall. Disk is the emission from the angle file. owall is the flux from
+        the outer wall. Scatt is the scattered light emission. Also adds self-extinction array if available.
+        
+        You should either supply the job number of the inner wall file, or the kwargs used to find it via a
+        search. Jobw 
+        
+        INPUTS
+        altname: An alternate name for the inner wall file if necessary.
+        jobw: The job number of the wall. Can be a string of 'XXX' or 'XXXX' based on the filename, or just the integer.
+        highWall: BOOLEAN -- if 1, it means it's a 4 digit string rather than 3. Needed if you provide an int for jobw.
+        **searchkwargs: Kwargs corresponding to parameters in the header that can be used to find the jobw value if 
+                        you don't already know it. Otherwise, not necessary for the function call.
+        """
         
         if jobw == None and len(searchKwargs) == 0:
             raise IOError('DATAINIT: You must enter either a job number or kwargs to match or search for an inner wall.')
