@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 # Created by Dan Feldman and Connor Robinson for analyzing data from Espaillat Group research models.
+<<<<<<< HEAD
 # Last updated: 8/4/15 by Dan
+=======
+# Last updated: 7/31/15 by Dan
+>>>>>>> master
 
 #-------------------------------------------IMPORT RELEVANT MODELS-------------------------------------------
 import numpy as np
@@ -25,8 +29,14 @@ plt.rc('figure', autolayout=True)
 #-----------------------------------------------------PATHS------------------------------------------------------
 # Folders where model output data and observational data can be found:
 datapath        = '/Users/danfeldman/Orion_Research/Orion_Research/CVSO_4Objs/Models/CVSO109PT2/'
+<<<<<<< HEAD
 figurepath      = '/Users/danfeldman/Orion_Research/Orion_Research/CVSO_4Objs/Look_SEDs/CVSO107/'
 #figurepath      = '/Users/danfeldman/Orion_Research/Orion_Research/CVSO_4Objs/Models/Full_CVSO_Grid/CVSO58_sil/'
+=======
+#figurepath      = '/Users/danfeldman/Orion_Research/Orion_Research/CVSO_4Objs/Look_SEDs/CVSO90PT/'
+figurepath      = '/Users/danfeldman/Orion_Research/Orion_Research/CVSO_4Objs/Models/Full_CVSO_Grid/CVSO90_sil/'
+#deredpath       = '/Users/danfeldman/Orion_Research/Dereddening_Codes/starparam/'           # De-redden magnitude path
+>>>>>>> master
 
 #---------------------------------------------INDEPENDENT FUNCTIONS----------------------------------------------
 # A function is considered independent if it does not reference any other function or class in this module.
@@ -1026,7 +1036,7 @@ class TTS_Model(object):
                 the data attribute under the key 'total'.
     """
     
-    def __init__(self, name, jobn, dpath=datapath, high=0):
+    def __init__(self, name, jobn, dpath=datapath, full_trans=1, high=0, headonly=0):
         """
         Initializes instances of this class and loads the relevant data into attributes.
         
@@ -1045,6 +1055,15 @@ class TTS_Model(object):
         fitsname        = dpath + name + '_' + stringnum + '.fits'      # Fits filename, preceeded by the path from paths section
         HDUlist         = fits.open(fitsname)                           # Opens the fits file for use
         header          = HDUlist[0].header                             # Stores the header in this variable
+        
+        # The new Python version of collate flips array indices, so must identify which collate.py was used:
+        if 'EXTAXIS' in header.keys() or 'NOEXT' in header.keys():
+            new         = 1
+        else:
+            if len(HDUlist[0].data) == 4:
+                new     = 1
+            else:
+                new     = 0
         
         # Initialize meta-data attributes for this object:
         self.name       = name
@@ -1075,6 +1094,7 @@ class TTS_Model(object):
         self.high       = high
         self.extcorr    = None
         
+<<<<<<< HEAD
         HDUlist.close()
         return
     
@@ -1130,6 +1150,74 @@ class TTS_Model(object):
         return
         
     def calc_total(self, phot=1, wall=1, disk=1, dust=0, verbose=1, dust_high=0, altinh=None, save=0):
+=======
+        # Initialize data attributes for this object using nested dictionaries:
+        # wl is the wavelength (corresponding to all three flux arrays). Phot is the stellar photosphere emission.
+        # iWall is the flux from the inner wall. Disk is the emission from the angle file.
+        if headonly == 0:
+            if full_trans:
+                if new:
+                    # Need to figure out which components exist, and load them in based on locations in the header:
+                    self.data = {'wl': HDUlist[0].data[header['WLAXIS'],:]}         # Wavelength should always exist
+                    
+                    # Now loop through the various components:
+                    if 'PHOTAXIS' in header.keys():
+                        self.data['phot'] = HDUlist[0].data[header['PHOTAXIS'],:]
+                    else:
+                        print('__INIT__: Warning: No photosphere data found for ' + self.name)
+                    if 'WALLAXIS' in header.keys():
+                        self.data['iwall'] = HDUlist[0].data[header['WALLAXIS'],:]
+                    else:
+                        print('__INIT__: Warning: No inner wall data found for ' + self.name)
+                    if 'ANGAXIS' in header.keys():
+                        self.data['disk'] = HDUlist[0].data[header['ANGAXIS'],:]
+                    else:
+                        print('__INIT__: Warning: No outer disk data found for ' + self.name)
+                    # Components left are not always present, so no warning given if they are missing!
+                    if 'SCATAXIS' in header.keys():
+                        self.data['scatt'] = HDUlist[0].data[header['SCATAXIS'],:]
+                    if 'EXTAXIS' in header.keys():
+                        self.extcorr = HDUlist[0].data[header['EXTAXIS'],:]
+                else:
+                    self.data = {'wl': HDUlist[0].data[:,0], 'phot': HDUlist[0].data[:,1], 'iwall': HDUlist[0].data[:,2], \
+                                 'disk': HDUlist[0].data[:,3]}
+            else:
+                # If a pre-transitional disk, have to match the job to the inner-wall job.
+                z           = raw_input('What altinh value are you using for the inner wall? ')
+                match       = searchJobs(name, dpath=dpath, amaxs=header['AMAXS'], eps=header['EPS'], alpha=header['ALPHA'], mdot=header['MDOT'], altinh=int(z),rdisk=1, temp=1400)
+                if len(match) == 0:
+                    raise IOError('__INIT__: No inner wall model matches these parameters.')
+                elif len(match) >1:
+                    raise IOError('__INIT__: Multiple inner wall models match. Do not know which one to pick.')
+                else:
+                    outfits = fits.open(dpath + name + '_' + match[0] + '.fits')
+                    if new:
+                        # Same looping process as in a full or transitional disk, except iwall from outfits:
+                        self.data = {'wl': HDUlist[0].data[header['WLAXIS'],:], 'iwall': outfits[0].data[header['WALLAXIS'],:]}
+                        if 'PHOTAXIS' in header.keys():
+                            self.data['phot'] = HDUlist[0].data[header['PHOTAXIS'],:]
+                        else:
+                            print('__INIT__: Warning: No photosphere data found for ' + self.name)
+                        if 'WALLAXIS' in header.keys():
+                            self.data['owall'] = HDUlist[0].data[header['WALLAXIS'],:]
+                        else:
+                            print('__INIT__: Warning: No outer wall data found for ' + self.name)
+                        if 'ANGAXIS' in header.keys():
+                            self.data['disk'] = HDUlist[0].data[header['ANGAXIS'],:]
+                        else:
+                            print('__INIT__: Warning: No outer disk data found for ' + self.name)
+                        if 'SCATAXIS' in header.keys():
+                            self.data['scatt'] = HDUlist[0].data[header['SCATAXIS'],:]
+                        if 'EXTAXIS' in header.keys():
+                            self.extcorr = HDUlist[0].data[header['EXTAXIS'],:]
+                    else:
+                        self.data = {'wl': HDUlist[0].data[:,0], 'phot': HDUlist[0].data[:,1], 'owall': HDUlist[0].data[:,2], \
+                                     'disk': HDUlist[0].data[:,3], 'iwall': outfits[0].data[:,2]}
+    
+        HDUlist.close()                                                 # Closes the fits file, since we no longer need it
+        
+    def calc_total(self, phot=1, wall=1, disk=1, owall=0, dust=0, verbose=1, dust_high=0, altinh=None, save=0):
+>>>>>>> master
         """
         Calculates the total flux for our object (likely to be used for plotting and/or analysis). Once calculated, it
         will be added to the data attribute for this object. If already calculated, will overwrite.
@@ -1157,6 +1245,7 @@ class TTS_Model(object):
             if verbose:
                 print 'CALC_TOTAL: Adding inner wall component to the total flux.'
             if altinh != None:
+<<<<<<< HEAD
                 self.newIWall = self.data['iwall'] * altinh
                 totFlux       = totFlux + self.newIWall     # Note: if save=1, will save iwall w/ the original altinh.
                 self.wallH    = self.altinh * altinh
@@ -1168,12 +1257,19 @@ class TTS_Model(object):
                     del self.newIWall
                 except AttributeError:
                     pass
+=======
+                newWall = self.data['iwall'] * altinh
+                totFlux = totFlux + newWall                  # Note: if save=1, will save iwall w/ the original altinh.
+            else:
+                totFlux = totFlux + self.data['iwall']
+>>>>>>> master
             componentNumber += 1
         if disk:
             if verbose:
                 print 'CALC_TOTAL: Adding disk component to the total flux.'
             totFlux     = totFlux + self.data['disk']
             componentNumber += 1
+<<<<<<< HEAD
         if dust != 0:
             try:
                 dustNum = numCheck(dust, high=dust_high)
@@ -1495,6 +1591,12 @@ class PTD_Model(TTS_Model):
                     del self.newOWall
                 except AttributeError:
                     pass
+=======
+        if owall:
+            if verbose:
+                print 'CALC_TOTAL: Adding outer wall component to the total flux.'
+            totFlux     = totFlux + self.data['owall']
+>>>>>>> master
             componentNumber += 1
         if dust != 0:
             try:
@@ -1515,9 +1617,16 @@ class PTD_Model(TTS_Model):
         if 'scatt' in self.data.keys():
             scatt       = 1
             if verbose:
+<<<<<<< HEAD
                 print('CALC_TOTAL: Adding scattered light component to the total flux.')
             totFlux     = totFlux + self.data['scatt']
             componentNumber += 1
+=======
+                print 'CALC_TOTAL: Adding scattered light component to the total flux.'
+            totFlux     = totFlux + self.data['scatt']
+            componentNumber += 1
+            
+>>>>>>> master
         
         # Add the total flux array to the data dictionary attribute:
         if verbose:
