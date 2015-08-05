@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Created by Dan Feldman and Connor Robinson for analyzing data from Espaillat Group research models.
-# Last updated: 8/4/15 by Dan
+# Last updated: 8/5/15 by Dan
 
 #-------------------------------------------IMPORT RELEVANT MODELS-------------------------------------------
 import numpy as np
@@ -480,7 +480,7 @@ def loadPickle(name, picklepath=datapath, num=None):
         pickle          = cPickle.load(f)
         f.close()
     elif num != None:
-        f               = open(picklepath+name+'_obs_'+str(num)+'.pkl', 'rb')
+        f               = open(picklepath+name+'_obs_'+numCheck(num)+'.pkl', 'rb')
         pickle          = cPickle.load(f)
         f.close()
     return pickle
