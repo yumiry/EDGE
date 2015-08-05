@@ -4,14 +4,14 @@ from astropy.io import ascii
 from glob import glob
 #import pdb
 
-def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinct = 0):
+def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinct = 0, noangle = 0, nowall = 0, nophot = 0, noscatt = 1):
     """
      collate.py                                                                          
                                                                                            
      PURPOSE:                                                                              
             Organizes and stores flux and parameters from the D'Alessio                    
             disk/optically thin dust models and jobfiles in a fits                         
-            file with a header                                                             
+            file with a header.                                                             
                                                                                            
      CALLING SEQUENCE:                                                                     
             collate(path, jobnum, name, destination, [optthin=1], [clob=1], [noextinc = 1])
@@ -41,6 +41,10 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
             noextin: Set this value to 1 (or True) if you do NOT want to apply extinction 
                      to the inner wall and photosphere.
 
+            noscatt: !!!!! NOTE: THIS IS SET TO 1 BY DEFAULT !!!!!
+                     Set this value to 1 (or True) if you do NOT want to include the scattered light file.
+                     Set this value to 0 (or False) if you DO want to include the scattered light file
+
      EXAMPLES:                                                                                
             To collate a single model run for the object 'myobject' under the
             job number '001', use the following commands:
@@ -68,6 +72,9 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
                                     
                
      NOTES:
+    
+            For the most current version of collate and EDGE, please visit the github respository:
+            https://github.com/danfeldman90/EDGE
 
             Collate corrects the flux from the star and the inner wall for extinction from
             the outer disk.
@@ -81,9 +88,14 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
             amax in the optthin model did not originally have an s after it. It is changed in 
             the header file to have the s to be consistant with the disk models.
 
+
+
+    
+
                                                                                             
      MODIFICATION HISTORY
-     Connor Robinson, 24 July 2014, Added extinction from the outer disk  + flag to turn it off
+     Connor Robinson, 30 July 2015, Added scattered light + ability to turn off components of the model
+     Connor Robinson, 24 July 2015, Added extinction from the outer disk  + flag to turn it off
      Connor Robinson, 23 July 2015, Updated documentation and added usage examples
      Dan Feldman, 19 July 2015, added numCheck() and high kwarg to handle integer jobnums
      Dan Feldman, 25 June 2015, Improved readability.                                      
@@ -222,24 +234,92 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
         #Reduce the amount of Spanish here
         sparam[sparam.index('DISTANCIA')] = 'DISTANCE'
 
-        #Read in data from outputs
-        phot  = ascii.read(glob(path+'Phot*'+jobnum)[0]) #if you don't change photospheres for each run, may need to change.
-        angle = ascii.read(glob(path+'angle*'+'_'+jobnum+'*')[0], data_start = 1)
-        wall  =  ascii.read(glob(path+'fort17*'+name+'_'+jobnum)[0], data_start = 9)
-
-        #Apply extinction from outer disk on inner disk and star if the noextinct flag is not set
-        if noextinct == 0:
-            dataarr = np.array([phot['col1'], phot['col2'], wall['col2'], angle['col4'], angle['col6']])
-            dataarr[1] *=np.exp((-1)*dataarr[4])
-            dataarr[2] *=np.exp((-1)*dataarr[4])
-
-        elif noextinct == 1:
-            dataarr = np.array([phot['col1'], phot['col2'], wall['col2'], angle['col4']])
-    
-
-        else:
-            raise IOError('COLLATE: INVALID INPUT FOR OPTTHIN KEYWORD, SHOULD BE 1 OR 0')
+        #Read in data from outputs (if the no____ flags are not set)
         
+        #set up empty array to accept data, column names and axis number
+        dataarr = np.array([])
+        axis = {'WLAXIS':0}
+        axis_count = 1 #Starts at 1, axis 0 reserved for wavelength information
+
+        #Read in arrays and manage axis information
+
+        if nophot == 0:
+            phot  = ascii.read(glob(path+'Phot*'+jobnum)[0]) 
+            axis['PHOTAXIS'] = axis_count
+
+            dataarr = np.concatenate((dataarr, phot['col1']))
+            dataarr = np.concatenate((dataarr, phot['col2']))
+
+            axis_count += 1
+
+        elif nophot != 1 and nophot != 0:
+            raise IOError('COLLATE: INVALID INPUT FOR NOPHOT KEYWORD, SHOULD BE 1 OR 0')
+
+        if nowall == 0:
+            wall  =  ascii.read(glob(path+'fort17*'+name+'_'+jobnum)[0], data_start = 9)
+            axis['WALLAXIS'] = axis_count
+
+            #If the photosphere was not run, then grab wavelength information from wall file
+            if nophot != 0: 
+                dataarr = np.concatenate((dataarr, wall['col1']))
+            
+            dataarr = np.concatenate((dataarr, wall['col2']))
+            axis_count += 1
+
+        elif nowall != 1 and nowall != 0:
+            raise IOError('COLLATE: INVALID INPUT FOR NOWALL KEYWORD, SHOULD BE 1 OR 0')
+
+        if noangle == 0:
+            angle = ascii.read(glob(path+'angle*'+name+'_'+jobnum+'*')[0], data_start = 1)
+            axis['ANGAXIS'] = axis_count
+
+            #If the photosphere was not run, and the wall was not run then grab wavelength information from angle file
+            if nophot != 0 and nowall != 0:
+                dataarr = np.concatenate((dataarr, angle['col1']))
+
+            dataarr = np.concatenate((dataarr, angle['col4']))
+            axis_count += 1
+
+        elif noangle != 1 and noangle != 0:
+            raise IOError('COLLATE: INVALID INPUT FOR NOANGLE KEYWORD, SHOULD BE 1 OR 0')
+
+        if noscatt == 0:
+            scatt = ascii.read(glob(path+'scatt*'+name+'_'+jobnum+'*')[0], data_start = 1)
+            axis['SCATAXIS'] = axis_count
+            
+            if nophot != 0 and nowall != 0 and noangle != 0:
+                dataarr = np.concatenate((dataarr, scatt['col1']))
+            
+            dataarr = np.concatenate((dataarr, scatt['col4']))
+            axis_count += 1
+
+        elif noscatt != 1 and noscatt != 0:
+            raise IOError('COLLATE: INVALID INPUT FOR NOSCATT KEYWORD, SHOULD BE 1 OR 0')
+
+        if noextinct == 0:
+            if noangle != 0:
+                raise IOError('NEED A ANGLE FILE IN ORDER TO INCLUDE EXTINCTION FROM DISK, NOANGLE KEYWORD SHOULD BE UNDEFINED OR 0')
+
+            dataarr = np.concatenate((dataarr, angle['col6']))
+            axis['EXTAXIS'] = axis_count
+
+
+            axis_count += 1
+
+        elif noextinct != 1 and noextinct != 0:
+            raise IOError('COLLATE: INVALID INPUT FOR NOANGLE KEYWORD, SHOULD BE 1 OR 0')
+
+
+        #Put data array into the standard form for EDGE
+        dataarr = np.reshape(dataarr, (axis_count, len(dataarr)/axis_count))
+
+        if noextinct == 0:
+            if nophot == 0:
+                dataarr[axis['PHOTAXIS'],:] *=np.exp((-1)*dataarr[axis['EXTAXIS'],:])
+            if nowall == 0:
+                dataarr[axis['WALLAXIS'],:] *=np.exp((-1)*dataarr[axis['EXTAXIS'],:])
+            
+
 
         #Create the header and add parameters
         hdu = fits.PrimaryHDU(dataarr)
@@ -248,20 +328,20 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
             hdu.header.set(param, dparam[i])
 
         hdu.header.set('RIN', float(np.loadtxt(glob(path+'rin*'+name+'_'+jobnum)[0])))
-        hdu.header.set('WLAXIS', 0)
-        hdu.header.set('PHOTAXIS',1)
-        hdu.header.set('WALLAXIS', 2)
-        hdu.header.set('ANGAXIS', 3)
         
-        if noextinct == 0:
-            hdu.header.set('EXTAXIS', 4)
-        elif noextinct == 1:
+        #Create tags in the header that match up each column to the data enclosed]
+        for naxis in axis:
+            hdu.header.set(naxis, axis[naxis])
+
+        #Add a tag to the header if the noextinct flag is on
+        if noextinct == 1:
             hdu.header.set('NOEXT', 1)
         
         #Write header to fits file
         hdu.writeto(destination+name+'_'+jobnum+'.fits', clobber = clob)
         
-    # If you don't give a valid input for the optthin keyword
+
+    # If you don't give a valid input for the optthin keyword, raise an error
     else:
         raise IOError('COLLATE: INVALID INPUT FOR OPTTHIN KEYWORD, SHOULD BE 1 OR 0')
     
