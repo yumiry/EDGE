@@ -3,6 +3,7 @@ from astropy.io import fits
 from astropy.io import ascii
 from glob import glob
 #import pdb
+import os
 
 def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinct = 0, noangle = 0, nowall = 0, nophot = 0, noscatt = 1):
     """
@@ -37,6 +38,14 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
                   fits file from a previous run.
             
             high: Set this value to 1 (or True) if your job number is 4 digits long.
+
+            nowall: Set this value to 1 (or True) if you do NOT want to include a wall file
+            
+            noangle: Set this value to 1 (or True) if you do NOT want to to include a disk file
+                     NOTE: You cannot perform the self extinction correction without the angle file. If this is set to 1, then
+                     the noextin keyword will also be set to 1 automatically. 
+
+            nophot: Set this value to 1 (or True) if you do NOT want to include a photosphere file
 
             noextin: Set this value to 1 (or True) if you do NOT want to apply extinction 
                      to the inner wall and photosphere.
@@ -88,12 +97,9 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
             amax in the optthin model did not originally have an s after it. It is changed in 
             the header file to have the s to be consistant with the disk models.
 
-
-
-    
-
                                                                                             
      MODIFICATION HISTORY
+     Connor Robinson, 6 Aug 2015, Added error handling, the FAILED key in the header, and the failCheck and head functions 
      Connor Robinson, 30 July 2015, Added scattered light + ability to turn off components of the model
      Connor Robinson, 24 July 2015, Added extinction from the outer disk  + flag to turn it off
      Connor Robinson, 23 July 2015, Updated documentation and added usage examples
@@ -115,12 +121,16 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
     if optthin:
         
         #Read in file
-        #NOTE: NEED TO CHANGE TO ADD UNDERSCORE AS DEFAULT JOB NAME
         job = 'job_optthin'+jobnum
-        f = open(path+job, 'r')
+
+        try:
+            f = open(path+job, 'r')
+        except IOError:
+            print('MISSING JOB NUMBER '+jobnum+', RETURNING...')
+            return
+
         jobf  = f.read()
         f.close()
-        
         
         #Define what variables to record
         sdparam = (['TSTAR', 'RSTAR', 'DISTANCIA', 'MUI', 'ROUT', 'RIN', 'TAUMIN', 'POWER',
@@ -129,11 +139,30 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
         dparam = np.zeros(len(sdparam), dtype = float)
         
         #Read in the data associated with this model
-        data = ascii.read(glob(path+'fort16*'+jobnum)[0])
-        
+        file = glob(path+'fort16*'+name+'*'+jobnum)
+        failed = 0
+        size = 0
+        miss = 0
+        try:
+            size = os.path.getsize(file[0])
+        except IndexError:
+            print("WARNING: JOB "+jobnum+" MISSING FORT16 FILE (OPTICALLY THIN DUST MODEL), ADDED 'FAILED' TAG TO HEADER")
+            failed = True
+            miss = 1
+        if miss != 1 and size == 0:
+            print("WARNING: JOB "+jobnum+" EMPTY FORT16 FILE (OPTICALLY THIN DUST MODEL), ADDED FAILED TAG TO HEADER")
+            failed = True
+
+        if failed == False:
+            data = ascii.read(file[0])
         #Combine data into a single array to be consistant with previous version of collate
-        dataarr = np.array([data['col1'], data['col3']])
-        
+            #if os.path.getsize(file[0]) !=0:
+            dataarr = np.array([data['col1'], data['col3']])
+                
+        #If the file is missing/empty, add an empty array to collated file
+        if failed != 0:
+            dataarr = np.array([])
+
         #Make an HDU object to contain header/data
         hdu = fits.PrimaryHDU(dataarr)
         
@@ -167,17 +196,38 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
         hdu.header.set('OPTTHIN', 1)
         hdu.header.set('WLAXIS', 0)
         hdu.header.set('LFLAXIS',1)
-        hdu.writeto(destination+name+'_OTD_'+jobnum+'.fits', clobber = clob)
         
-    # If working with job models, not optically thin models
+        if failed == 1:
+            hdu.header.set('Failed', 1)
+        
+        hdu.writeto(destination+name+'_OTD_'+jobnum+'.fits', clobber = clob)
+
+        if nowall == 1 or noangle == 1 or nophot == 1:
+            print("WARNING: KEYWORDS THAT HAVE NO AFFECT ON OPTICALLY THIN DUST HAVE BEEN USED (NOPHOT, NOWALL, NOANGLE)")
+        
+    # If working with job models start here
     elif optthin == 0 or optthin == 'False':
         
         #read in file
         job = 'job'+jobnum
-        f = open(path+job, 'r')
+
+        try: 
+            f = open(path+job, 'r')
+        except IOError:
+            print('MISSING JOB FILE '+jobnum+', RETURNING...')
+            return
+
         jobf = f.read()
         f.close()
-        
+
+
+        #Check to see if the name + jobnum matches up with the labelend, if it doens't, return
+        labelend = jobf.split("set labelend='")[1].split("'")[0]
+
+        if labelend != name+'_'+jobnum:
+            print('NAME IS NOT THE SAME AS THE NAME IN JOB '+jobnum+' LABELEND, RETURNING...')
+            return
+            
         #Define what variables to record
         sparam = (['MSTAR', 'TSTAR', 'RSTAR', 'DISTANCIA','MDOT', 'ALPHA', 'MUI', 'RDISK',
                    'AMAXS', 'EPS', 'WLCUT_ANGLE', 'WLCUT_SCATT', 'NSILCOMPOUNDS', 'SILTOTABUN',
@@ -220,7 +270,7 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
             
             else:
                 dparam[ind] = float(jobf.split(param+"='")[1].split("'")[0])
-        
+
         #Rename header labels that are too long
         sparam[sparam.index('AMORPFRAC_OLIVINE')]  = 'AMORF_OL'
         sparam[sparam.index('AMORPFRAC_PYROXENE')] = 'AMORF_PY'
@@ -242,69 +292,138 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
         axis_count = 1 #Starts at 1, axis 0 reserved for wavelength information
 
         #Read in arrays and manage axis information
+        #Also handles errors for missing/empty files
+
+        failed = False;
+        size = 0
+        miss = 0
 
         if nophot == 0:
-            phot  = ascii.read(glob(path+'Phot*'+jobnum)[0]) 
-            axis['PHOTAXIS'] = axis_count
+            photfile = glob(path+'Phot*'+jobnum)
+            try:
+                size = os.path.getsize(photfile[0])
+            except IndexError:
+                print("WARNING: JOB "+jobnum+" MISSING PHOTOSPHERE FILE, ADDED 'FAILED' TAG TO HEADER. NOPHOT SET TO 1") 
+                nophot = 1
+                failed = True
+                miss = 1
 
-            dataarr = np.concatenate((dataarr, phot['col1']))
-            dataarr = np.concatenate((dataarr, phot['col2']))
-
-            axis_count += 1
+            if miss != 1 and size != 0:
+                phot  = ascii.read(photfile[0]) 
+                axis['PHOTAXIS'] = axis_count
+                dataarr = np.concatenate((dataarr, phot['col1']))
+                dataarr = np.concatenate((dataarr, phot['col2']))
+                axis_count += 1
+            elif miss != 1 and size == 0:
+                print("WARNING: JOB "+jobnum+" PHOT FILE EMPTY, ADDED 'FAILED' TAG TO HEADER. NOPHOT SET TO 1")
+                nophot = 1
+                failed = True
 
         elif nophot != 1 and nophot != 0:
             raise IOError('COLLATE: INVALID INPUT FOR NOPHOT KEYWORD, SHOULD BE 1 OR 0')
 
-        if nowall == 0:
-            wall  =  ascii.read(glob(path+'fort17*'+name+'_'+jobnum)[0], data_start = 9)
-            axis['WALLAXIS'] = axis_count
+        size = 0
+        miss = 0
 
-            #If the photosphere was not run, then grab wavelength information from wall file
-            if nophot != 0: 
-                dataarr = np.concatenate((dataarr, wall['col1']))
+        if nowall == 0:
+            wallfile = glob(path+'fort17*'+name+'_'+jobnum)
+            try:
+                size = os.path.getsize(wallfile[0])
+            except IndexError:
+                print("WARNING: JOB "+jobnum+" MISSING FORT17 (WALL) FILE, ADDED 'FAILED' TAG TO HEADER. NOWALL SET TO 1")
+                nowall = 1
+                failed = True
+                miss = 1
             
-            dataarr = np.concatenate((dataarr, wall['col2']))
-            axis_count += 1
+            if miss != 1 and size != 0:
+                wall  =  ascii.read(wallfile[0], data_start = 9)                
+                axis['WALLAXIS'] = axis_count
+                #If the photosphere was not run, then grab wavelength information from wall file
+                if nophot != 0: 
+                    dataarr = np.concatenate((dataarr, wall['col1']))
+
+                dataarr = np.concatenate((dataarr, wall['col2']))
+                axis_count += 1
+            
+            elif miss != 1 and size == 0:
+                print("WARNING: JOB "+jobnum+" FORT17 (WALL) FILE EMPTY, ADDED 'FAILED' TAG TO HEADER. NOWALL SET TO 1")
+                failed = True
+                nowall = 1
 
         elif nowall != 1 and nowall != 0:
             raise IOError('COLLATE: INVALID INPUT FOR NOWALL KEYWORD, SHOULD BE 1 OR 0')
+        
+        miss = 0
+        size = 0
 
         if noangle == 0:
-            angle = ascii.read(glob(path+'angle*'+name+'_'+jobnum+'*')[0], data_start = 1)
-            axis['ANGAXIS'] = axis_count
+            anglefile = glob(path+'angle*'+name+'_'+jobnum+'*')
+            try:
+                size = os.path.getsize(anglefile[0])
+            except IndexError:
+                print("WARNING: JOB "+jobnum+" MISSING ANGLE (DISK) FILE, ADDED 'FAILED' TAG TO HEADER. NOANGLE SET TO 1")
+                noangle = 1
+                failed = True
+                miss = 1
+ 
+            if miss != 1 and size != 0:
+                angle = ascii.read(anglefile[0], data_start = 1)
+                axis['ANGAXIS'] = axis_count
+                    #If the photosphere was not run, and the wall was not run then grab wavelength information from angle file
+                if nophot != 0 and nowall != 0:
+                    dataarr = np.concatenate((dataarr, angle['col1']))
 
-            #If the photosphere was not run, and the wall was not run then grab wavelength information from angle file
-            if nophot != 0 and nowall != 0:
-                dataarr = np.concatenate((dataarr, angle['col1']))
-
-            dataarr = np.concatenate((dataarr, angle['col4']))
-            axis_count += 1
+                dataarr = np.concatenate((dataarr, angle['col4']))
+                axis_count += 1
+               
+            elif miss != 1 and size == 0:
+                print("WARNING: JOB "+jobnum+" (DISK) FILE EMPTY, ADDED 'FAILED' TAG TO HEADER. NOANGLE SET TO 1")
+                failed = True
+                noangle = 1
 
         elif noangle != 1 and noangle != 0:
             raise IOError('COLLATE: INVALID INPUT FOR NOANGLE KEYWORD, SHOULD BE 1 OR 0')
 
+        miss = 0
+        size = 0
+
         if noscatt == 0:
-            scatt = ascii.read(glob(path+'scatt*'+name+'_'+jobnum+'*')[0], data_start = 1)
-            axis['SCATAXIS'] = axis_count
-            
-            if nophot != 0 and nowall != 0 and noangle != 0:
-                dataarr = np.concatenate((dataarr, scatt['col1']))
-            
-            dataarr = np.concatenate((dataarr, scatt['col4']))
-            axis_count += 1
+            scattfile = glob(path+'scatt*'+name+'_'+jobnum+'*')
+            try:
+                size = os.path.getsize(scattfile[0])
+            except IndexError:
+                print("WARNING: JOB "+jobnum+" MISSING SCATT FILE, ADDED 'FAILED' TAG TO HEADER. NOSCATT SET TO 1")
+                noscatt = 1
+                failed = True
+                miss = 1
+
+            if miss != 1 and size !=0:
+                scatt = ascii.read(scattfile[0], data_start = 1)
+                axis['SCATAXIS'] = axis_count
+                    #If the photosphere, wall and disk were not run, then grab wavelength information from scatt file
+                if nophot != 0 and nowall != 0 and noangle != 0:
+                    dataarr = np.concatenate((dataarr, scatt['col1']))
+
+                dataarr = np.concatenate((dataarr, scatt['col4']))
+                axis_count += 1
+                
+            elif miss != 1 and size == 0:
+                print("WARNING: JOB "+jobnum+" SCATT FILE EMPTY, ADDED 'FAILED' TAG TO HEADER. NOSCATT SET TO 1")
+                failed = True
+                noscatt = 1
 
         elif noscatt != 1 and noscatt != 0:
             raise IOError('COLLATE: INVALID INPUT FOR NOSCATT KEYWORD, SHOULD BE 1 OR 0')
 
         if noextinct == 0:
             if noangle != 0:
-                raise IOError('NEED A ANGLE FILE IN ORDER TO INCLUDE EXTINCTION FROM DISK, NOANGLE KEYWORD SHOULD BE UNDEFINED OR 0')
-
-            dataarr = np.concatenate((dataarr, angle['col6']))
-            axis['EXTAXIS'] = axis_count
-
-
-            axis_count += 1
+                print("ANGLE (DISK) FILE "+jobnum+" REQUIRED FOR EXTINCTION FROM DISK. ADDED 'FAILED' TAG TO HEADER, NOEXTINCT SET TO 1")
+                failed = 1
+                noextinct = 1
+            else:
+                dataarr = np.concatenate((dataarr, angle['col6']))
+                axis['EXTAXIS'] = axis_count
+                axis_count += 1
 
         elif noextinct != 1 and noextinct != 0:
             raise IOError('COLLATE: INVALID INPUT FOR NOANGLE KEYWORD, SHOULD BE 1 OR 0')
@@ -319,7 +438,6 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
             if nowall == 0:
                 dataarr[axis['WALLAXIS'],:] *=np.exp((-1)*dataarr[axis['EXTAXIS'],:])
             
-
 
         #Create the header and add parameters
         hdu = fits.PrimaryHDU(dataarr)
@@ -336,7 +454,12 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
         #Add a tag to the header if the noextinct flag is on
         if noextinct == 1:
             hdu.header.set('NOEXT', 1)
+
+        #Add FAILED tag to header if any of the model elements were not found
         
+        if failed == 1:
+            hdu.header.set('FAILED', 1)
+
         #Write header to fits file
         hdu.writeto(destination+name+'_'+jobnum+'.fits', clobber = clob)
         
@@ -366,3 +489,119 @@ def numCheck(num, high=0):
     else:
         numstr          = '%03d' % num
     return numstr
+
+def failCheck(name, path = '', jobnum = 'all', high = 0, optthin = 0):
+    """
+    Opens up each header, checks if 'FAILED' tag = 1 and records the job number in a list if it is
+
+    INPUTS:
+           name: String of the name of object
+
+    OPTIONAL INPUTS:
+           path: Path to the collated file. Default is the current directory
+
+           jobnum: Job number of object. Can be either a string or an int. If it's not set, failCheck
+                   will return ALL collated jobs that failed in the path directory
+
+    KEYWORDS:
+
+           optthin: Set this to 1 if the collated file is an optically thin dust file
+
+           high: Set this to 1 if the jobnum has 4 digits.
+
+    OUTPUT
+           Returns a list of failed jobs. If none are found, array will be empty.
+    """
+
+    opt = ''
+    if optthin == 1:
+        opt = 'OTD_' 
+
+    #Set up wildcards depending on number formating
+    if high == 0:
+        wildhigh = '???'
+    if high == 1:
+        wildhigh = '????'
+
+    if jobnum == 'all':
+        if optthin == 1:
+            files = glob(path+name+'_'+opt+'*.fits')
+        if optthin == 0:
+            files = glob(path+name+'_'+wildhigh+'.fits')
+                
+        failed = []
+
+        for file in files:
+            HDU = fits.open(file)
+            nofail = 0
+            try:
+                HDU[0].header['Failed'] == 1
+            except KeyError:
+                nofail = 1
+            if nofail != 1:
+                failed.append(file)
+
+    if jobnum != 'all':   
+
+
+        jobnum = numCheck(jobnum, high = high)
+        failed = []
+        nofail = 0
+        file = glob(path+name+'_'+opt+jobnum+'.fits')
+
+        
+        try:
+            HDU = fits.open(file[0])       
+        except IndexError:
+            print('NO FILE MATCHING THOSE CRITERIA COULD BE FOUND, RETURNING...')
+            return
+        try:
+            HDU[0].header['Failed'] == 1
+        except KeyError:
+            nofail = 1
+        if nofail != 1:
+            failed = [file[0]]
+
+    return failed
+
+
+def head(name, jobnum, path='', optthin = 0, high = 0):
+    """
+    
+    prints out the contents of the header of a collated file
+
+    INPUTS:
+           name: String of the name of object
+
+           jobnum: Job number of object. Can be either a string or an int
+
+    OPTIONAL INPUTS:
+           path: Path to the collated file. Default is the current directory
+
+    KEYWORDS:
+           optthin: Set this to 1 If the collated file is an optically thin dust file
+
+           high: Set this to 1 if the jobnum has 4 digits.
+
+    OUTPUTS:
+           Prints the contents of the header to the terminal. Returns nothing else.
+
+    """
+
+    jobnum = numCheck(jobnum, high = high)
+    
+
+    if optthin == 1:
+        otd = 'OTD_'
+    else:
+        otd = ''
+
+    file = path+name+'_'+otd+jobnum+'.fits'
+
+    HDU = fits.open(file)
+
+    print(repr(HDU[0].header))
+
+
+    
+    
