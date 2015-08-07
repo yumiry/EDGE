@@ -485,7 +485,7 @@ def loadPickle(name, picklepath=datapath, num=None):
         f.close()
     return pickle
 
-def job_file_create(jobnum, path, high=0, **kwargs):
+def job_file_create(jobnum, path, high=0, iwall=0, **kwargs):
     """
     Creates a new job file that is used by the D'Alessio Model.
     
@@ -493,6 +493,7 @@ def job_file_create(jobnum, path, high=0, **kwargs):
     jobnum: The job number used to name the output job file.
     path: The path containing the sample job file, and ultimately, the output.
     high: BOOLEAN -- if True (1), output will be jobXXXX instead of jobXXX.
+    iwall: BOOLEAN -- if True (1), output will turn off switches so we just run as inner wall.
     **kwargs: The keywords arguments used to make changes to the sample file. Available
               kwargs include:
         amaxs - maximum grain size in disk
@@ -525,9 +526,9 @@ def job_file_create(jobnum, path, high=0, **kwargs):
     job_file.close()
     
     # Double check for the correct default amax and epsilon values:
-    if fullText[43][0] == '#' or fullText[44][0] == '#':
+    if fullText[42][0] == '#' or fullText[43][0] == '#':
         raise ValueError('JOB_FILE_CREATE: There is a comment problem at amax=0.25')
-    if fullText[71][0] == '#' or fullText[72][0] == '#':
+    if fullText[70][0] == '#' or fullText[71][0] == '#':
         raise ValueError('JOB_FILE_CREATE: There is a comment problem at eps=0.0001')
     
     # Now we run through the list of changes desired and change them:
@@ -539,75 +540,75 @@ def job_file_create(jobnum, path, high=0, **kwargs):
         if amaxVal == 0.25:
             pass
         elif amaxVal == 0.05:
-            if fullText[37][0] == '#' and fullText[38][0] == '#':
-                fullText[37] = fullText[37][1:]     # Remove the pound at 0.05
-                fullText[38] = fullText[38][1:]
-                fullText[43] = '#' + fullText[43]   # Add the pound at 0.25
-                fullText[44] = '#' + fullText[44]
+            if fullText[36][0] == '#' and fullText[37][0] == '#':
+                fullText[36] = fullText[36][1:]     # Remove the pound at 0.05
+                fullText[37] = fullText[37][1:]
+                fullText[42] = '#' + fullText[42]   # Add the pound at 0.25
+                fullText[43] = '#' + fullText[43]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at amax=0.05')
         elif amaxVal == 0.1:
-            if fullText[40][0] == '#' and fullText[41][0] == '#':
-                fullText[40] = fullText[40][1:]     # Remove the pound at 0.1
-                fullText[41] = fullText[41][1:]
-                fullText[43] = '#' + fullText[43]   # Add the pound at 0.25
-                fullText[44] = '#' + fullText[44]
+            if fullText[39][0] == '#' and fullText[40][0] == '#':
+                fullText[39] = fullText[39][1:]     # Remove the pound at 0.1
+                fullText[40] = fullText[40][1:]
+                fullText[42] = '#' + fullText[42]   # Add the pound at 0.25
+                fullText[43] = '#' + fullText[43]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at amax=0.1')
         elif amaxVal == 1.0:
-            if fullText[46][0] == '#' and fullText[47][0] == '#':
-                fullText[46] = fullText[46][1:]     # Remove the pound at 1.0
-                fullText[47] = fullText[47][1:]
-                fullText[43] = '#' + fullText[43]   # Add the pound at 0.25
-                fullText[44] = '#' + fullText[44]
+            if fullText[45][0] == '#' and fullText[46][0] == '#':
+                fullText[45] = fullText[45][1:]     # Remove the pound at 1.0
+                fullText[46] = fullText[46][1:]
+                fullText[42] = '#' + fullText[42]   # Add the pound at 0.25
+                fullText[43] = '#' + fullText[43]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at amax=1.0')
         elif amaxVal == 2.0:
-            if fullText[49][0] == '#' and fullText[50][0] == '#':
-                fullText[49] = fullText[49][1:]     # Remove the pound at 2.0
-                fullText[50] = fullText[50][1:]
-                fullText[43] = '#' + fullText[43]   # Add the pound at 0.25
-                fullText[44] = '#' + fullText[44]
+            if fullText[48][0] == '#' and fullText[49][0] == '#':
+                fullText[48] = fullText[48][1:]     # Remove the pound at 2.0
+                fullText[49] = fullText[49][1:]
+                fullText[42] = '#' + fullText[42]   # Add the pound at 0.25
+                fullText[43] = '#' + fullText[43]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at amax=2.0')
         elif amaxVal == 3.0:
-            if fullText[52][0] == '#' and fullText[53][0] == '#':
-                fullText[52] = fullText[52][1:]     # Remove the pound at 3.0
-                fullText[53] = fullText[53][1:]
-                fullText[43] = '#' + fullText[43]   # Add the pound at 0.25
-                fullText[44] = '#' + fullText[44]
+            if fullText[51][0] == '#' and fullText[52][0] == '#':
+                fullText[51] = fullText[51][1:]     # Remove the pound at 3.0
+                fullText[52] = fullText[52][1:]
+                fullText[42] = '#' + fullText[42]   # Add the pound at 0.25
+                fullText[43] = '#' + fullText[43]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at amax=3.0')
         elif amaxVal == 4.0:
-            if fullText[55][0] == '#' and fullText[56][0] == '#':
-                fullText[55] = fullText[55][1:]     # Remove the pound at 4.0
-                fullText[56] = fullText[56][1:]
-                fullText[43] = '#' + fullText[43]   # Add the pound at 0.25
-                fullText[44] = '#' + fullText[44]
+            if fullText[54][0] == '#' and fullText[55][0] == '#':
+                fullText[54] = fullText[54][1:]     # Remove the pound at 4.0
+                fullText[55] = fullText[55][1:]
+                fullText[42] = '#' + fullText[42]   # Add the pound at 0.25
+                fullText[43] = '#' + fullText[43]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at amax=4.0')
         elif amaxVal == 5.0:
-            if fullText[58][0] == '#' and fullText[59][0] == '#':
-                fullText[58] = fullText[58][1:]     # Remove the pound at 5.0
-                fullText[59] = fullText[59][1:]
-                fullText[43] = '#' + fullText[43]   # Add the pound at 0.25
-                fullText[44] = '#' + fullText[44]
+            if fullText[57][0] == '#' and fullText[58][0] == '#':
+                fullText[57] = fullText[57][1:]     # Remove the pound at 5.0
+                fullText[58] = fullText[58][1:]
+                fullText[42] = '#' + fullText[42]   # Add the pound at 0.25
+                fullText[43] = '#' + fullText[43]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at amax=5.0')
         elif amaxVal == 10.0:
-            if fullText[61][0] == '#' and fullText[62][0] == '#':
-                fullText[61] = fullText[61][1:]     # Remove the pound at 10.0
-                fullText[62] = fullText[62][1:]
-                fullText[43] = '#' + fullText[43]   # Add the pound at 0.25
-                fullText[44] = '#' + fullText[44]
+            if fullText[60][0] == '#' and fullText[61][0] == '#':
+                fullText[60] = fullText[60][1:]     # Remove the pound at 10.0
+                fullText[61] = fullText[61][1:]
+                fullText[42] = '#' + fullText[42]   # Add the pound at 0.25
+                fullText[43] = '#' + fullText[43]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at amax=10.0')
         elif amaxVal == 100.0:
-            if fullText[64][0] == '#' and fullText[65][0] == '#':
-                fullText[64] = fullText[64][1:]     # Remove the pound at 100.0
-                fullText[65] = fullText[65][1:]
-                fullText[43] = '#' + fullText[43]   # Add the pound at 0.25
-                fullText[44] = '#' + fullText[44]
+            if fullText[63][0] == '#' and fullText[64][0] == '#':
+                fullText[63] = fullText[63][1:]     # Remove the pound at 100.0
+                fullText[64] = fullText[64][1:]
+                fullText[42] = '#' + fullText[42]   # Add the pound at 0.25
+                fullText[43] = '#' + fullText[43]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at amax=100.0')
         else:
@@ -621,51 +622,51 @@ def job_file_create(jobnum, path, high=0, **kwargs):
         if epsVal == 0.0001:
             pass        # Default value is 0.0001
         elif epsVal == 0.001:
-            if fullText[74][0] == '#' and fullText[75][0] == '#':
-                fullText[74] = fullText[74][1:]     # Remove the pound at 0.001
-                fullText[75] = fullText[75][1:]
-                fullText[71] = '#' + fullText[71]   # Add the pound at 0.0001
-                fullText[72] = '#' + fullText[72]
+            if fullText[73][0] == '#' and fullText[74][0] == '#':
+                fullText[73] = fullText[73][1:]     # Remove the pound at 0.001
+                fullText[74] = fullText[74][1:]
+                fullText[70] = '#' + fullText[70]   # Add the pound at 0.0001
+                fullText[71] = '#' + fullText[71]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at eps=0.001')
         elif epsVal == 0.01:
-            if fullText[77][0] == '#' and fullText[78][0] == '#':
-                fullText[77] = fullText[77][1:]     # Remove the pound at 0.01
-                fullText[78] = fullText[78][1:]
-                fullText[71] = '#' + fullText[71]   # Add the pound at 0.0001
-                fullText[72] = '#' + fullText[72]
+            if fullText[76][0] == '#' and fullText[77][0] == '#':
+                fullText[76] = fullText[76][1:]     # Remove the pound at 0.01
+                fullText[77] = fullText[77][1:]
+                fullText[70] = '#' + fullText[70]   # Add the pound at 0.0001
+                fullText[71] = '#' + fullText[71]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at eps=0.01')
         elif epsVal == 0.1:
-            if fullText[80][0] == '#' and fullText[81][0] == '#':
-                fullText[80] = fullText[80][1:]     # Remove the pound at 0.1
-                fullText[81] = fullText[81][1:]
-                fullText[71] = '#' + fullText[71]   # Add the pound at 0.0001
-                fullText[72] = '#' + fullText[72]
+            if fullText[79][0] == '#' and fullText[80][0] == '#':
+                fullText[79] = fullText[79][1:]     # Remove the pound at 0.1
+                fullText[80] = fullText[80][1:]
+                fullText[70] = '#' + fullText[70]   # Add the pound at 0.0001
+                fullText[71] = '#' + fullText[71]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at eps=0.1')
         elif epsVal == 0.2:
-            if fullText[83][0] == '#' and fullText[84][0] == '#':
-                fullText[83] = fullText[83][1:]     # Remove the pound at 0.2
-                fullText[84] = fullText[84][1:]
-                fullText[71] = '#' + fullText[71]   # Add the pound at 0.0001
-                fullText[72] = '#' + fullText[72]
+            if fullText[82][0] == '#' and fullText[83][0] == '#':
+                fullText[82] = fullText[82][1:]     # Remove the pound at 0.2
+                fullText[83] = fullText[83][1:]
+                fullText[70] = '#' + fullText[70]   # Add the pound at 0.0001
+                fullText[71] = '#' + fullText[71]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at eps=0.2')
         elif epsVal == 0.5:
-            if fullText[86][0] == '#' and fullText[87][0] == '#':
-                fullText[86] = fullText[86][1:]     # Remove the pound at 0.5
-                fullText[87] = fullText[87][1:]
-                fullText[71] = '#' + fullText[71]   # Add the pound at 0.0001
-                fullText[72] = '#' + fullText[72]
+            if fullText[85][0] == '#' and fullText[86][0] == '#':
+                fullText[85] = fullText[85][1:]     # Remove the pound at 0.5
+                fullText[86] = fullText[86][1:]
+                fullText[70] = '#' + fullText[70]   # Add the pound at 0.0001
+                fullText[71] = '#' + fullText[71]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at eps=0.5')
         elif epsVal == 1.0:
-            if fullText[89][0] == '#' and fullText[90][0] == '#':
-                fullText[89] = fullText[89][1:]     # Remove the pound at 1.0
-                fullText[90] = fullText[90][1:]
-                fullText[71] = '#' + fullText[71]   # Add the pound at 0.0001
-                fullText[72] = '#' + fullText[72]
+            if fullText[88][0] == '#' and fullText[89][0] == '#':
+                fullText[88] = fullText[88][1:]     # Remove the pound at 1.0
+                fullText[89] = fullText[89][1:]
+                fullText[70] = '#' + fullText[70]   # Add the pound at 0.0001
+                fullText[71] = '#' + fullText[71]
             else:
                 raise ValueError('JOB_FILE_CREATE: There is a comment problem at eps=1.0')
         else:
@@ -675,51 +676,59 @@ def job_file_create(jobnum, path, high=0, **kwargs):
     if 'mstar' in kwargs:                           # Stellar mass parameter
         mstarVal = kwargs['mstar']
         del kwargs['mstar']
-        fullText[14] = fullText[14][:11] + str(mstarVal) + fullText[14][-11:]
+        fullText[15] = fullText[15][:11] + str(mstarVal) + fullText[15][-11:]
     if 'tstar' in kwargs:                           # Photosphere temp parameter
         tstarVal = kwargs['tstar']
         del kwargs['tstar']
-        fullText[15] = fullText[15][:11] + str(tstarVal) + fullText[15][-8:]
+        fullText[16] = fullText[16][:11] + str(tstarVal) + fullText[16][-8:]
     if 'rstar' in kwargs:                           # Stellar radius parameter
         rstarVal = kwargs['rstar']
         del kwargs['rstar']
-        fullText[16] = fullText[16][:11] + str(rstarVal) + fullText[16][-12:]
+        fullText[17] = fullText[17][:11] + str(rstarVal) + fullText[17][-12:]
     if 'dist' in kwargs:                            # Stellar distance parameter
         distVal = kwargs['dist']
         del kwargs['dist']
-        fullText[17] = fullText[17][:15] + str(distVal) + fullText[17][-14:]
+        fullText[18] = fullText[18][:15] + str(distVal) + fullText[18][-14:]
     if 'mdot' in kwargs:                            # Accretion rate parameter
         mdotVal = kwargs['mdot']
         del kwargs['mdot']
-        fullText[18] = fullText[18][:10] + str(mdotVal) + fullText[18][-15:]
+        fullText[19] = fullText[19][:10] + str(mdotVal) + fullText[19][-15:]
     if 'tshock' in kwargs:                          # Shock temp parameter
         tshockVal = kwargs['tshock']
         del kwargs['tshock']
-        fullText[21] = fullText[21][:11] + str(float(tshockVal)) + '\n'
+        fullText[22] = fullText[22][:11] + str(int(tshockVal)) + '.\n'
     if 'alpha' in kwargs:                           # Alpha viscosity parameter
         alphaVal = kwargs['alpha']
         del kwargs['alpha']
-        fullText[24] = fullText[24][:11] + str(alphaVal) + fullText[24][-2:]
+        fullText[25] = fullText[25][:11] + str(alphaVal) + fullText[25][-3:]
     if 'mui' in kwargs:                             # Cosine of inclination
         muiVal = kwargs['mui']
         del kwargs['mui']
-        fullText[25] = fullText[25][:9] + str(muiVal) + fullText[25][-32:]
+        fullText[26] = fullText[26][:9] + str(muiVal) + fullText[26][-32:]
     if 'rdisk' in kwargs:                           # Outer disk radius parameter
         rdiskVal = kwargs['rdisk']
         del kwargs['rdisk']
-        fullText[31] = fullText[31][:11] + str(rdiskVal) + fullText[31][-25:]
+        fullText[31] = fullText[31][:11] + str(rdiskVal) + fullText[31][-31:]
     if 'labelend' in kwargs:                        # Labelend on output files
         labelVal = kwargs['labelend']
         del kwargs['labelend']
-        fullText[159] = fullText[159][:14] + str(labelVal) + fullText[159][-2:]
+        fullText[146] = fullText[146][:14] + str(labelVal) + fullText[146][-2:]
     if 'temp' in kwargs:                            # Inner wall temp parameter
         tempVal = kwargs['temp']
         del kwargs['temp']
-        fullText[562] = fullText[562][:9] + str(tempVal) + fullText[562][-2:]
+        fullText[29] = fullText[29][:9] + str(int(tempVal)) + fullText[29][-50:]
     if 'altinh' in kwargs:                          # Inner wall height parameter
         altVal = kwargs['altinh']
         del kwargs['altinh']
-        fullText[563] = fullText[563][:11] + str(altVal) + fullText[563][-2:]
+        fullText[30] = fullText[30][:11] + str(altVal) + fullText[30][-24:]
+    if iwall:
+        # If an inner wall job is desired, turn off all but isilcom and iwalldust:
+        fullText[153] = fullText[153][:-3] + '0' + fullText[153][-2:]   # IPHOT
+        fullText[165] = fullText[165][:-3] + '0' + fullText[165][-2:]   # IOPA
+        fullText[170] = fullText[170][:-3] + '0' + fullText[170][-2:]   # IVIS
+        fullText[176] = fullText[176][:-3] + '0' + fullText[176][-2:]   # IIRR
+        fullText[179] = fullText[179][:-5] + '0' + fullText[179][-4:]   # IPROP
+        fullText[191] = fullText[191][:-3] + '0' + fullText[191][-2:]   # ISEDT
     
     # Once all changes have been made, we just create a new job file:
     if high:
@@ -964,6 +973,12 @@ def model_rchi2(objname, model, path):
     waveindex   = np.argsort(wavelength)        # indices that sort the array
     wavelength  = wavelength[waveindex]
     flux        = flux[waveindex]
+    # If there are any NaNs in the array, we need to chop them out, stat!
+    if np.isnan(np.sum(flux)):
+        badVals = np.where(np.isnan(flux))      # Where the NaNs are located
+        flux    = np.delete(flux, badVals)
+        wavelength = np.delete(wavelength, badVals)
+    # Interpolate so the observations and model are on the same grid:
     modelFlux   = np.interp(wavelength, model.data['wl'], model.data['total'])
     
     # The tough part -- figuring out the proper weights. Let's take a stab:
@@ -1149,6 +1164,8 @@ class TTS_Model(object):
         # Add the components to the total flux, checking each component along the way:
         totFlux         = np.zeros(len(self.data['wl']), dtype=float)
         componentNumber = 1
+        if self.extcorr != None:
+            componentNumber += 1
         if phot:
             if verbose:
                 print 'CALC_TOTAL: Adding photosphere component to the total flux.'
@@ -1233,6 +1250,9 @@ class TTS_Model(object):
                 headerStr += 'Scattered Light, '
                 outputTable[:, colNum] = self.data['scatt']
                 colNum += 1
+            if self.extcorr != None:
+                headerStr += 'Tau, '
+                outputTable[:, colNum] = self.extcorr
             
             # Trim the header and save:
             headerStr  = headerStr[0:-2]

@@ -193,7 +193,7 @@ set ISEDT='1'
 #------------------------
 #run sed_scatter (scattered emission)? (0=n,1=y) 
 #has same dependencies as sed_angle
-set ISEDS='1'
+set ISEDS='0'
 
 
 ##########################################################
