@@ -973,6 +973,12 @@ def model_rchi2(objname, model, path):
     waveindex   = np.argsort(wavelength)        # indices that sort the array
     wavelength  = wavelength[waveindex]
     flux        = flux[waveindex]
+    # If there are any NaNs in the array, we need to chop them out, stat!
+    if np.isnan(np.sum(flux)):
+        badVals = np.where(np.isnan(flux))      # Where the NaNs are located
+        flux    = np.delete(flux, badVals)
+        wavelength = np.delete(wavelength, badVals)
+    # Interpolate so the observations and model are on the same grid:
     modelFlux   = np.interp(wavelength, model.data['wl'], model.data['total'])
     
     # The tough part -- figuring out the proper weights. Let's take a stab:
