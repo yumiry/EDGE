@@ -2,6 +2,7 @@ import numpy as np
 from astropy.io import fits
 from astropy.io import ascii
 from glob import glob
+import pdb
 import os
 
 def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinct = 0, noangle = 0, nowall = 0, nophot = 0, noscatt = 1):
@@ -164,13 +165,21 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
             dataarr = np.array([])
 
         #Convert anything that can't be read as a float into a nan
+
+        tempdata = np.zeros(len(dataarr))
         if failed == 0:
             for i, value in enumerate(dataarr):
                 try:
-                    dataarr[i] = dataarr[i].astype(float)
+                    tempdata[i] = float(dataarr[i])
                 except ValueError:
-                    dataarr[i] = float('nan')
+                    floaterr = 1
+                    tempdata[i] = float('nan')
+                    
+            if floaterr:
+                print('WARNING: JOB '+jobnum+' FILES CONTAIN FLOAT OVERFLOW/UNDERFLOW ERRORS, THESE VALUES HAVE BEEN SET TO NAN')
 
+            dataarr = tempdata
+        
         #Make an HDU object to contain header/data
         hdu = fits.PrimaryHDU(dataarr)
         
@@ -437,14 +446,26 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
             raise IOError('COLLATE: INVALID INPUT FOR NOANGLE KEYWORD, SHOULD BE 1 OR 0')
 
 
+
+        #If data has values that overflow/underflow float type, replace them with NaN
+
+        tempdata = np.zeros(len(dataarr))
+        for i, value in enumerate(dataarr):
+            try:
+                tempdata[i] = float(dataarr[i]) #dataarr[i].astype(float)
+            except ValueError:
+                floaterr = 1
+                tempdata[i] = float('nan')
+
+        if floaterr:
+            print('WARNING: JOB '+jobnum+' FILES CONTAIN FLOAT OVERFLOW/UNDERFLOW ERRORS, THESE VALUES HAVE BEEN SET TO NAN')
+
+        dataarr = tempdata
+
+
         #Put data array into the standard form for EDGE
         dataarr = np.reshape(dataarr, (axis_count, len(dataarr)/axis_count))
 
-        for i, value in enumerate(dataarr):
-            try:
-                dataarr[i] = dataarr[i].astype(float)
-            except ValueError:
-                dataarr[i] = float('nan')
 
         if noextinct == 0:
             if nophot == 0:
@@ -557,13 +578,14 @@ def failCheck(name, path = '', jobnum = 'all', high = 0, optthin = 0):
 
     if jobnum != 'all':   
 
-
-        jobnum = numCheck(jobnum, high = high)
+        if type(jobnum) == int:
+            jobnum = numCheck(jobnum, high = high)
+        
         failed = []
         nofail = 0
+        
         file = glob(path+name+'_'+opt+jobnum+'.fits')
 
-        
         try:
             HDU = fits.open(file[0])       
         except IndexError:
@@ -601,9 +623,8 @@ def head(name, jobnum, path='', optthin = 0, high = 0):
            Prints the contents of the header to the terminal. Returns nothing else.
 
     """
-
-    jobnum = numCheck(jobnum, high = high)
-    
+    if type(jobnum) == int:
+        jobnum = numCheck(jobnum, high = high)
 
     if optthin == 1:
         otd = 'OTD_'
