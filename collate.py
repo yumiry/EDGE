@@ -167,15 +167,17 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
         #Convert anything that can't be read as a float into a nan
 
         tempdata = np.zeros(len(dataarr))
+        floaterr = 0
+
         if failed == 0:
             for i, value in enumerate(dataarr):
                 try:
-                    tempdata[i] = float(dataarr[i])
+                    tempdata[i] = float(dataarr[i]) #dataarr[i].astype(float)
                 except ValueError:
                     floaterr = 1
                     tempdata[i] = float('nan')
                     
-            if floaterr:
+            if floaterr == 1:
                 print('WARNING: JOB '+jobnum+' FILES CONTAIN FLOAT OVERFLOW/UNDERFLOW ERRORS, THESE VALUES HAVE BEEN SET TO NAN')
 
             dataarr = tempdata
@@ -450,6 +452,8 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
         #If data has values that overflow/underflow float type, replace them with NaN
 
         tempdata = np.zeros(len(dataarr))
+        floaterr = 0 
+
         for i, value in enumerate(dataarr):
             try:
                 tempdata[i] = float(dataarr[i]) #dataarr[i].astype(float)
@@ -457,7 +461,7 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
                 floaterr = 1
                 tempdata[i] = float('nan')
 
-        if floaterr:
+        if floaterr == 1:
             print('WARNING: JOB '+jobnum+' FILES CONTAIN FLOAT OVERFLOW/UNDERFLOW ERRORS, THESE VALUES HAVE BEEN SET TO NAN')
 
         dataarr = tempdata
