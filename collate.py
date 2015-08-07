@@ -2,7 +2,6 @@ import numpy as np
 from astropy.io import fits
 from astropy.io import ascii
 from glob import glob
-#import pdb
 import os
 
 def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinct = 0, noangle = 0, nowall = 0, nophot = 0, noscatt = 1):
@@ -158,10 +157,19 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
         #Combine data into a single array to be consistant with previous version of collate
             #if os.path.getsize(file[0]) !=0:
             dataarr = np.array([data['col1'], data['col3']])
-                
+
+
         #If the file is missing/empty, add an empty array to collated file
         if failed != 0:
             dataarr = np.array([])
+
+        #Convert anything that can't be read as a float into a nan
+        if failed == 0:
+            for i, value in enumerate(dataarr):
+                try:
+                    dataarr[i] = dataarr[i].astype(float)
+                except ValueError:
+                    dataarr[i] = float('nan')
 
         #Make an HDU object to contain header/data
         hdu = fits.PrimaryHDU(dataarr)
@@ -309,7 +317,7 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
                 miss = 1
 
             if miss != 1 and size != 0:
-                phot  = ascii.read(photfile[0]) 
+                phot  = ascii.read(photfile[0])
                 axis['PHOTAXIS'] = axis_count
                 dataarr = np.concatenate((dataarr, phot['col1']))
                 dataarr = np.concatenate((dataarr, phot['col2']))
@@ -336,7 +344,7 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
                 miss = 1
             
             if miss != 1 and size != 0:
-                wall  =  ascii.read(wallfile[0], data_start = 9)                
+                wall  =  ascii.read(wallfile[0], data_start = 9)
                 axis['WALLAXIS'] = axis_count
                 #If the photosphere was not run, then grab wavelength information from wall file
                 if nophot != 0: 
@@ -377,7 +385,7 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
                 axis_count += 1
                
             elif miss != 1 and size == 0:
-                print("WARNING: JOB "+jobnum+" (DISK) FILE EMPTY, ADDED 'FAILED' TAG TO HEADER. NOANGLE SET TO 1")
+                print("WARNING: JOB "+jobnum+" ANGLE (DISK) FILE EMPTY, ADDED 'FAILED' TAG TO HEADER. NOANGLE SET TO 1")
                 failed = True
                 noangle = 1
 
@@ -431,6 +439,12 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
 
         #Put data array into the standard form for EDGE
         dataarr = np.reshape(dataarr, (axis_count, len(dataarr)/axis_count))
+
+        for i, value in enumerate(dataarr):
+            try:
+                dataarr[i] = dataarr[i].astype(float)
+            except ValueError:
+                dataarr[i] = float('nan')
 
         if noextinct == 0:
             if nophot == 0:
