@@ -30,6 +30,22 @@ figurepath      = '/Users/danfeldman/Orion_Research/Orion_Research/CVSO_4Objs/Lo
 
 #---------------------------------------------INDEPENDENT FUNCTIONS----------------------------------------------
 # A function is considered independent if it does not reference any other function or class in this module.
+
+def keyErrHandle(func):
+    """
+    A decorator to allow methods and functions to have key errors, and to print the failed key.
+    """
+    
+    def handler(*args, **kwargs):
+        try:
+            func(*args, **kwargs)
+        except KeyError as badKey:
+            print('Key error was encountered. The missing key is: ' + str(badKey))
+            return 0
+        else:
+            return 1
+    return handler
+
 def filelist(path):
     """
     Returns a list of files in a directory. Pops out hidden values.
@@ -1144,7 +1160,8 @@ class TTS_Model(object):
         
         HDUdata.close()
         return
-        
+    
+    @keyErrHandle
     def calc_total(self, phot=1, wall=1, disk=1, dust=0, verbose=1, dust_high=0, altinh=None, save=0):
         """
         Calculates the total flux for our object (likely to be used for plotting and/or analysis). Once calculated, it
