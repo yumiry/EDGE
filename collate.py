@@ -139,6 +139,7 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
         dparam = np.zeros(len(sdparam), dtype = float)
         
         #Read in the data associated with this model
+        dataarr = np.array([])
         file = glob(path+'fort16*'+name+'*'+jobnum)
         failed = 0
         size = 0
@@ -156,12 +157,32 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
         if failed == False:
             data = ascii.read(file[0])
         #Combine data into a single array to be consistant with previous version of collate
-            #if os.path.getsize(file[0]) !=0:
-            dataarr = np.array([data['col1'], data['col3']])
-                
+            if size !=0:
+                dataarr = np.concatenate((dataarr, data['col1']))
+                dataarr = np.concatenate((dataarr, data['col3']))
+
         #If the file is missing/empty, add an empty array to collated file
         if failed != 0:
             dataarr = np.array([])
+
+        #Convert anything that can't be read as a float into a nan
+        tempdata = np.zeros(len(dataarr))
+        floaterr = 0
+
+        if failed == 0:
+            for i, value in enumerate(dataarr):
+                try:
+                    tempdata[i] = float(dataarr[i]) #dataarr[i].astype(float)
+                except ValueError:
+                    floaterr = 1
+                    tempdata[i] = float('nan')
+                    
+            if floaterr == 1:
+                print('WARNING: JOB '+jobnum+' FILES CONTAIN FLOAT OVERFLOW/UNDERFLOW ERRORS, THESE VALUES HAVE BEEN SET TO NAN')
+
+            axis_count = 2; #One axis for flux, one for wavelength
+
+            dataarr = np.reshape(tempdata, (axis_count, len(tempdata)/axis_count))
 
         #Make an HDU object to contain header/data
         hdu = fits.PrimaryHDU(dataarr)
@@ -280,7 +301,7 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
         sparam[sparam.index('SILTOTABUN')] = 'SILTOTAB'
         sparam[sparam.index('FORSTERITE_FRAC')] = 'FORSTERI'
         sparam[sparam.index('ENSTATITE_FRAC')] = 'ENSTATIT'
-        
+    
         #Reduce the amount of Spanish here
         sparam[sparam.index('DISTANCIA')] = 'DISTANCE'
 
@@ -309,7 +330,7 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
                 miss = 1
 
             if miss != 1 and size != 0:
-                phot  = ascii.read(photfile[0]) 
+                phot  = ascii.read(photfile[0])
                 axis['PHOTAXIS'] = axis_count
                 dataarr = np.concatenate((dataarr, phot['col1']))
                 dataarr = np.concatenate((dataarr, phot['col2']))
@@ -336,7 +357,7 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
                 miss = 1
             
             if miss != 1 and size != 0:
-                wall  =  ascii.read(wallfile[0], data_start = 9)                
+                wall  =  ascii.read(wallfile[0], data_start = 9)
                 axis['WALLAXIS'] = axis_count
                 #If the photosphere was not run, then grab wavelength information from wall file
                 if nophot != 0: 
@@ -377,7 +398,7 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
                 axis_count += 1
                
             elif miss != 1 and size == 0:
-                print("WARNING: JOB "+jobnum+" (DISK) FILE EMPTY, ADDED 'FAILED' TAG TO HEADER. NOANGLE SET TO 1")
+                print("WARNING: JOB "+jobnum+" ANGLE (DISK) FILE EMPTY, ADDED 'FAILED' TAG TO HEADER. NOANGLE SET TO 1")
                 failed = True
                 noangle = 1
 
@@ -396,8 +417,8 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
                 noscatt = 1
                 failed = True
                 miss = 1
-
-            if miss != 1 and size !=0:
+ 
+            if miss != 1 and size > 100:
                 scatt = ascii.read(scattfile[0], data_start = 1)
                 axis['SCATAXIS'] = axis_count
                     #If the photosphere, wall and disk were not run, then grab wavelength information from scatt file
@@ -407,7 +428,7 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
                 dataarr = np.concatenate((dataarr, scatt['col4']))
                 axis_count += 1
                 
-            elif miss != 1 and size == 0:
+            elif miss != 1 and size == 0 or miss != 1 and size < 100:
                 print("WARNING: JOB "+jobnum+" SCATT FILE EMPTY, ADDED 'FAILED' TAG TO HEADER. NOSCATT SET TO 1")
                 failed = True
                 noscatt = 1
@@ -429,6 +450,25 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
             raise IOError('COLLATE: INVALID INPUT FOR NOANGLE KEYWORD, SHOULD BE 1 OR 0')
 
 
+
+        #if data has values that overflow/underflow float type, replace them with NaN dataarr = tempdata
+
+        tempdata = np.zeros(len(dataarr))
+        floaterr = 0 
+
+
+        for i, value in enumerate(dataarr):
+            try:
+                tempdata[i] = float(dataarr[i]) #dataarr[i].astype(float)
+            except ValueError:
+                floaterr = 1
+                tempdata[i] = float('nan')
+
+        if floaterr == 1:
+            print('WARNING: JOB '+jobnum+' FILES CONTAIN FLOAT OVERFLOW/UNDERFLOW ERRORS, THESE VALUES HAVE BEEN SET TO NAN')
+
+        dataarr = tempdata
+
         #Put data array into the standard form for EDGE
         dataarr = np.reshape(dataarr, (axis_count, len(dataarr)/axis_count))
 
@@ -441,6 +481,10 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
 
         #Create the header and add parameters
         hdu = fits.PrimaryHDU(dataarr)
+
+        #Add a few misc tags to the header
+        hdu.header.set('OBJNAME', name)
+        hdu.header.set('JOBNUM', jobnum)
         
         for i, param in enumerate(sparam):
             hdu.header.set(param, dparam[i])
@@ -543,13 +587,14 @@ def failCheck(name, path = '', jobnum = 'all', high = 0, optthin = 0):
 
     if jobnum != 'all':   
 
-
-        jobnum = numCheck(jobnum, high = high)
+        if type(jobnum) == int:
+            jobnum = numCheck(jobnum, high = high)
+        
         failed = []
         nofail = 0
+        
         file = glob(path+name+'_'+opt+jobnum+'.fits')
 
-        
         try:
             HDU = fits.open(file[0])       
         except IndexError:
@@ -587,9 +632,8 @@ def head(name, jobnum, path='', optthin = 0, high = 0):
            Prints the contents of the header to the terminal. Returns nothing else.
 
     """
-
-    jobnum = numCheck(jobnum, high = high)
-    
+    if type(jobnum) == int:
+        jobnum = numCheck(jobnum, high = high)
 
     if optthin == 1:
         otd = 'OTD_'

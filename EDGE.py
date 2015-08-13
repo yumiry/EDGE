@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Created by Dan Feldman and Connor Robinson for analyzing data from Espaillat Group research models.
-# Last updated: 8/5/15 by Dan
+# Last updated: 8/13/15 by Dan
 
 #-------------------------------------------IMPORT RELEVANT MODELS-------------------------------------------
 import numpy as np
@@ -24,12 +24,29 @@ plt.rc('figure', autolayout=True)
 
 #-----------------------------------------------------PATHS------------------------------------------------------
 # Folders where model output data and observational data can be found:
+edgepath        = '/Users/danfeldman/Python_Code/EDGE/'
 datapath        = '/Users/danfeldman/Orion_Research/Orion_Research/CVSO_4Objs/Models/CVSO109PT2/'
 figurepath      = '/Users/danfeldman/Orion_Research/Orion_Research/CVSO_4Objs/Look_SEDs/CVSO107/'
 #figurepath      = '/Users/danfeldman/Orion_Research/Orion_Research/CVSO_4Objs/Models/Full_CVSO_Grid/CVSO58_sil/'
 
 #---------------------------------------------INDEPENDENT FUNCTIONS----------------------------------------------
 # A function is considered independent if it does not reference any other function or class in this module.
+
+def keyErrHandle(func):
+    """
+    A decorator to allow methods and functions to have key errors, and to print the failed key.
+    """
+    
+    def handler(*args, **kwargs):
+        try:
+            func(*args, **kwargs)
+        except KeyError as badKey:
+            print('Key error was encountered. The missing key is: ' + str(badKey))
+            return 0
+        else:
+            return 1
+    return handler
+
 def filelist(path):
     """
     Returns a list of files in a directory. Pops out hidden values.
@@ -458,7 +475,7 @@ def searchJobs(target, dpath=datapath, **kwargs):
     
     return job_matches
 
-def loadPickle(name, picklepath=datapath, num=None):
+def loadPickle(name, picklepath=datapath, num=None, red=0):
     """
     Loads in a pickle saved from the TTS_Obs class.
     
@@ -471,19 +488,34 @@ def loadPickle(name, picklepath=datapath, num=None):
     pickle: The object containing the data loaded in from the pickle.
     """
     
-    if num == None:
-        # Check if there is more than one
-        flist           = filelist(picklepath)
-        if (name + '_obs_1.pkl') in flist:
-            print 'LOADPICKLE: Warning! There is more than one pickle file for this object! Make sure it is the right one!'
-        f               = open(picklepath+name+'_obs.pkl', 'rb')
-        pickle          = cPickle.load(f)
-        f.close()
-    elif num != None:
-        f               = open(picklepath+name+'_obs_'+numCheck(num)+'.pkl', 'rb')
-        pickle          = cPickle.load(f)
-        f.close()
-    return pickle
+    if red:
+        if num == None:
+            # Check if there is more than one
+            flist           = filelist(picklepath)
+            if (name + '_red_1.pkl') in flist:
+                print 'LOADPICKLE: Warning! There is more than one pickle file for this object! Make sure it is the right one!'
+            f               = open(picklepath+name+'_red.pkl', 'rb')
+            pickle          = cPickle.load(f)
+            f.close()
+        elif num != None:
+            f               = open(picklepath+name+'_red_'+numCheck(num)+'.pkl', 'rb')
+            pickle          = cPickle.load(f)
+            f.close()
+        return pickle
+    else:
+        if num == None:
+            # Check if there is more than one
+            flist           = filelist(picklepath)
+            if (name + '_obs_1.pkl') in flist:
+                print 'LOADPICKLE: Warning! There is more than one pickle file for this object! Make sure it is the right one!'
+            f               = open(picklepath+name+'_obs.pkl', 'rb')
+            pickle          = cPickle.load(f)
+            f.close()
+        elif num != None:
+            f               = open(picklepath+name+'_obs_'+numCheck(num)+'.pkl', 'rb')
+            pickle          = cPickle.load(f)
+            f.close()
+        return pickle
 
 def job_file_create(jobnum, path, high=0, iwall=0, **kwargs):
     """
@@ -1144,7 +1176,8 @@ class TTS_Model(object):
         
         HDUdata.close()
         return
-        
+    
+    @keyErrHandle
     def calc_total(self, phot=1, wall=1, disk=1, dust=0, verbose=1, dust_high=0, altinh=None, save=0):
         """
         Calculates the total flux for our object (likely to be used for plotting and/or analysis). Once calculated, it
@@ -1633,7 +1666,7 @@ class TTS_Obs(object):
         self.photometry = {}
         self.ulim       = []
         
-    def add_spectra(self, scope, wlarr, fluxarr, errors=None):
+    def add_spectra(self, scope, wlarr, fluxarr, spec_err=None, nod_err=None):
         """
         Adds an entry to the spectra attribute.
         
@@ -1652,10 +1685,14 @@ class TTS_Obs(object):
                 proceed         = raw_input('Proceed? (Y/N): ')         # Prompt and collect manual answer - requires Y,N,Yes,No (not case sensitive)
                 if proceed.upper() == 'Y' or proceed.upper() == 'YES':  # If Y or Yes, overwrite file, then break out of loop
                     print 'ADD_SPECTRA: Replacing entry.'
-                    if errors == None:
+                    if spec_err == None and nod_err == None:
                         self.spectra[scope] = {'wl': wlarr, 'lFl': fluxarr}
-                    else:
-                        self.spectra[scope] = {'wl': wlarr, 'lFl': fluxarr, 'err': errors}
+                    elif spec_err != None and nod_err == None:
+                        self.spectra[scope] = {'wl': wlarr, 'lFl': fluxarr, 'specErr': spec_err}
+                    elif spec_err == None and nod_err != None:
+                        self.spectra[scope] = {'wl': wlarr, 'lFl': fluxarr, 'nodErr': nod_err}
+                    elif spec_err != None and nod_err != None:
+                        self.spectra[scope] = {'wl': wlarr, 'lFl': fluxarr, 'specErr': spec_err, 'nodErr': nod_err}
                     break
                 elif proceed.upper() == 'N' or proceed.upper() == 'NO': # If N or No, do not overwrite data and return
                     print 'ADD_SPECTRA: Will not replace entry. Returning now.'
@@ -1665,10 +1702,14 @@ class TTS_Obs(object):
             else:
                 raise IOError('You did not enter the correct Y/N response. Returning without replacing.')   # If you enter bad response too many times, raise error.
         else:
-            if errors == None:
-                self.spectra[scope] = {'wl': wlarr, 'lFl': fluxarr}     # If not an overwrite, writes data to the object's spectra attribute dictionary.
-            else:
-                self.spectra[scope] = {'wl': wlarr, 'lFl': fluxarr, 'err': errors}
+            if spec_err == None and nod_err == None:
+                self.spectra[scope] = {'wl': wlarr, 'lFl': fluxarr}
+            elif spec_err != None and nod_err == None:
+                self.spectra[scope] = {'wl': wlarr, 'lFl': fluxarr, 'specErr': spec_err}
+            elif spec_err == None and nod_err != None:
+                self.spectra[scope] = {'wl': wlarr, 'lFl': fluxarr, 'nodErr': nod_err}
+            elif spec_err != None and nod_err != None:
+                self.spectra[scope] = {'wl': wlarr, 'lFl': fluxarr, 'specErr': spec_err, 'nodErr': nod_err}
         return
     
     def add_photometry(self, scope, wlarr, fluxarr, errors=None, ulim=0):
@@ -1723,7 +1764,11 @@ class TTS_Obs(object):
         
         INPUTS
         picklepath: The path where you will save the pickle. I recommend datapath for simplicity.
+        
+        OUTPUT:
+        A pickle file of the name [self.name]_obs.pkl in the directory provided in picklepath.
         """
+        
         # Check whether or not the pickle already exists:
         pathlist        = filelist(picklepath)
         outname         = self.name + '_obs.pkl'
@@ -1735,6 +1780,194 @@ class TTS_Obs(object):
                 countstr= numCheck(count)
                 count   = count + 1
                 outname = self.name + '_obs_' + countstr + '.pkl'
+            else:
+                break
+        # Now that that's settled, let's save the pickle.
+        f               = open(picklepath + outname, 'wb')
+        cPickle.dump(self, f)
+        f.close()
+        return
+
+class Red_Obs(TTS_Obs):
+    """
+    A similar class to TTS_Obs, except meant to be utilized for observations that have not yet been
+    dereddened. Once dereddened, the pickle will be saved as a TTS_Obs object. If saved prior to
+    dereddening, the pickle will be associated with Red_Obs instead. I recommend keeping both.
+    
+    """
+    
+    def dered(self, Av, Av_unc, law, picklepath, flux=1, lpath=edgepath, err_prop=1):
+        """
+        Deredden the spectra/photometry present in the object, and then convert to TTS_Obs structure.
+        This function is adapted from the IDL procedure 'dered_calc.pro' (written by Melissa McClure).
+        
+        INPUTS
+        Av: The Av extinction value.
+        Av_unc: The uncertainty in the Av value provided.
+        law: The extinction law to be used -- these extinction laws are found in the ext_laws.pkl file.
+             The options you have are 'mkm09_rv5', 'mkm09_rv3', and 'mathis90_rv3.1'
+        picklepath: Where your dereddened observations pickle will be saved.
+        flux: BOOLEAN -- if True (1), the function will treat your photometry as flux units (erg s-1 cm-2).
+              if False (0), the function will treat your photometry as being Flambda (erg s-1 cm-2 cm-1).
+        lpath: Where the 'ext_laws.pkl' file is located. I suggest hard coding it as 'edgepath'.
+        err_prop: BOOLEAN -- if True (1), will propagate the uncertainty of your photometry with the
+                  uncertainty in your Av. Otherwise, it will not.
+        
+        OUTPUT
+        There will be a pickle file called '[self.name]_obs.pkl' in the path provided in picklepath. If
+        there is already an obs pickle file there, it will add an integer to the name to differentiate
+        between the two files, rather than overwriting.
+        """
+        
+        # Read in the dereddening laws pickle. The default is whereever you keep EDGE.py, but you can move it.
+        extPickle = open(lpath + 'ext_laws.pkl', 'rb')
+        extLaws   = cPickle.load(extPickle)
+        extPickle.close()
+        
+        # Figure out which law we will be using based on the user input and Av:
+        if law == 'mkm09_rv5':
+            print('Using the McClure (2009) ext. laws for Av >3\nwith the Mathis (1990) Rv=5.0 \
+                   law for Av < 3\n(appropriate for molecular clouds like Ophiuchus).')
+            AjoAks = 2.5341
+            AvoAj  = 3.06
+            
+            if Av >= 8.0:                                       # high Av range
+                wave_law = extLaws['mkm_high']['wl']
+                ext_law  = extLaws['mkm_high']['ext'] / AjoAks
+            elif Av >= 3.0 and Av < 8.0:                        # med Av range
+                wave_law = extLaws['mkm_med']['wl']
+                ext_law  = extLaws['mkm_med']['ext'] / AjoAks
+            elif Av < 3.0:                                      # low Av range
+                wave_law = extLaws['mathis_rv5']['wl']
+                ext_law  = extLaws['mathis_rv5']['ext']
+            else:
+                raise ValueError('DERED: Specified Av is not within acceptable ranges.')
+        elif law == 'mkm09_rv3':
+            print('Using the McClure (2009) ext. laws for Av >3\nwith the Mathis (1990) Rv=3.1 \
+                   law for Av < 3\n(appropriate for molecular clouds like Taurus).')
+            AjoAks = 2.5341
+            AvoAj  = 3.55 # for Rv=3.1 **WARNING** this is still the Rv=5 curve until 2nd step below.
+            
+            if Av >= 8.0:                                       # high Av range
+                wave_law = extLaws['mkm_high']['wl']
+                ext_law  = extLaws['mkm_high']['ext'] / AjoAks
+            elif Av >= 3.0 and Av < 8.0:                        # med Av range
+                wave_law = extLaws['mkm_med']['wl']
+                ext_law  = extLaws['mkm_med']['ext'] / AjoAks
+            elif Av < 3.0:                                      # low Av range
+                wave_law = extLaws['mathis_rv3']['wl']
+                ext_law  = extLaws['mathis_rv3']['ext']
+            else:
+                raise ValueError('DERED: Specified Av is not within acceptable ranges.')
+            
+            # Fix to the wave and ext. law:
+            wave_jm  = extLaws['mathis_rv3']['wl']
+            ext_jm   = extLaws['mathis_rv3']['ext']
+            jindmkm  = np.where(wave_law >= 1.25)[0]
+            jindjm   = np.where(wave_jm < 1.25)[0]
+            wave_law = np.append(wave_jm[jindjm], wave_law[jindmkm])
+            ext_law  = np.append(ext_jm[jindjm], ext_law[jindmkm])
+            
+        elif law == 'mathis90_rv3.1':
+            print('Using the Mathis (1990) Rv=3.1 law\n(appropriate for diffuse ISM).')
+            AjoAks   = 2.5341
+            AvoAj    = 3.55                                     # for Rv=3.1
+            wave_law = extLaws['mathis_rv3']['wl']
+            ext_law  = extLaws['mathis_rv3']['ext']
+        else:
+            raise ValueError('DERED: Specified extinction law string is not recognized.')
+        
+        A_object        = Av
+        A_object_string = str(round(A_object,2))
+        
+        # Open up a new TTS_Obs object to take the dereddened values:
+        deredObs        = TTS_Obs(self.name)
+        
+        # Loop over the provided spectra (and possible errors), and compute the dereddened fluxes
+        # and uncertainties where available. The possible uncertainties calculations are both the
+        # SSC/SMART's "spectral uncertainty" and the "nod-differenced uncertainty".
+        for specKey in self.spectra.keys():
+            extInterpolated = np.interp(self.spectra[specKey]['wl'], wave_law, ext_law) # Interpolated ext.
+            A_lambda        = extInterpolated * (A_object / AvoAj)
+            spec_flux       = np.float64(self.spectra[specKey]['lFl']*10.0**(0.4*A_lambda))
+
+            if 'specErr' in self.spectra[specKey].keys():
+                spec_unc    = np.float64(spec_flux*np.sqrt(((self.spectra[specKey]['specErr']/self.spectra[specKey]['lFl'])\
+                                         **2.) + (((0.4*math.log(10)*extInterpolated*Av_unc)/(AvoAj))**2.)) )
+            else:
+                spec_unc    = None
+            if 'nodErr' in self.spectra[specKey].keys():
+                pn_vals     = self.spectra[specKey]['nodErr']/abs(self.spectra[specKey]['nodErr'])
+                spec_nod    = np.float64(pn_vals*spec_flux*np.sqrt(((self.spectra[specKey]['nodErr'] \
+                                         / self.spectra[specKey]['lFl'])**2.) + \
+                                         (((0.4*math.log(10)*extInterpolated*Av_unc)/(AvoAj))**2.)) )
+            else:
+                spec_nod    = None
+            # Correct units to flux:
+            spec_flux       = spec_flux * self.spectra[specKey]['wl'] * 1e-4
+            if spec_unc != None:
+                spec_unc    = spec_unc  * self.spectra[specKey]['wl'] * 1e-4
+            if spec_nod != None:
+                spec_nod    = spec_nod  * self.spectra[specKey]['wl'] * 1e-4
+            deredObs.add_spectra(specKey, self.spectra[specKey]['wl'], spec_flux, spec_err=spec_unc, nod_err=spec_nod)
+        
+        # Spectra are done, onwards to photometry:
+        for photKey in self.photometry.keys():
+            extInterpolated = np.interp(self.photometry[photKey]['wl'], wave_law, ext_law)
+            A_lambda        = extInterpolated * (A_object / AvoAj)
+            if flux:
+                photcorr    = self.photometry[photKey]['lFl'] / (self.photometry[photKey]['wl']*1e-4)
+            else:
+                photcorr    = self.photometry[photKey]['lFl']
+            phot_dered      = np.float64(photcorr*10.0**(0.4*A_lambda))
+            if 'err' in self.photometry[photKey].keys():
+                if flux:
+                    errcorr = self.photometry[photKey]['err'] / (self.photometry[photKey]['wl']*1e-4)
+                else:
+                    errcorr = self.photometry[photKey]['err']
+                if err_prop:
+                    phot_err= np.float64(photcorr * np.sqrt(((errcorr/photcorr)**2.) + \
+                                         (((0.4*math.log(10.)*extInterpolated*Av_unc)/AvoAj)**2.)) )
+                else:
+                    phot_err= np.float64(errcorr*10.0**(0.4*A_lambda)) # Without propogating error!
+            else:
+                phot_err    = None
+            if photKey in self.ulim:
+                ulimVal     = 1
+            else:
+                ulimVal     = 0
+            # Now, convert everything to flux units:
+            phot_dered      = phot_dered * self.photometry[photKey]['wl'] * 1e-4
+            phot_err        = phot_err * self.photometry[photKey]['wl'] * 1e-4
+            deredObs.add_photometry(photKey, self.photometry[photKey]['wl'], phot_dered, errors=phot_err, ulim=ulimVal)
+
+        # Now that the new TTS_Obs object has been created and filled in, we must save it:
+        deredObs.SPPickle(picklepath=picklepath)
+        
+        return
+    
+    def SPPickle(self, picklepath):
+        """
+        The new version of SPPickle, different so you can differentiate between red and dered pickles.
+        
+        INPUT
+        picklepath: The path where the new pickle file will be located.
+        
+        OUTPUT
+        A new pickle file in picklepath, of the name [self.name]_red.pkl
+        """
+        
+        # Check whether or not the pickle already exists:
+        pathlist        = filelist(picklepath)
+        outname         = self.name + '_red.pkl'
+        count           = 1
+        while 1:
+            if outname in pathlist:
+                if count == 1:
+                    print 'SPPICKLE: Pickle already exists in directory. For safety, will change name.'
+                countstr= numCheck(count)
+                count   = count + 1
+                outname = self.name + '_red_' + countstr + '.pkl'
             else:
                 break
         # Now that that's settled, let's save the pickle.
