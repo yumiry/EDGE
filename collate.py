@@ -2,7 +2,7 @@ import numpy as np
 from astropy.io import fits
 from astropy.io import ascii
 from glob import glob
-import pdb
+#import pdb
 import os
 
 def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinct = 0, noangle = 0, nowall = 0, nophot = 0, noscatt = 1):
@@ -139,6 +139,7 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
         dparam = np.zeros(len(sdparam), dtype = float)
         
         #Read in the data associated with this model
+        dataarr = np.array([])
         file = glob(path+'fort16*'+name+'*'+jobnum)
         failed = 0
         size = 0
@@ -156,16 +157,15 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
         if failed == False:
             data = ascii.read(file[0])
         #Combine data into a single array to be consistant with previous version of collate
-            #if os.path.getsize(file[0]) !=0:
-            dataarr = np.array([data['col1'], data['col3']])
-
+            if size !=0:
+                dataarr = np.concatenate((dataarr, data['col1']))
+                dataarr = np.concatenate((dataarr, data['col3']))
 
         #If the file is missing/empty, add an empty array to collated file
         if failed != 0:
             dataarr = np.array([])
 
         #Convert anything that can't be read as a float into a nan
-
         tempdata = np.zeros(len(dataarr))
         floaterr = 0
 
@@ -180,8 +180,10 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
             if floaterr == 1:
                 print('WARNING: JOB '+jobnum+' FILES CONTAIN FLOAT OVERFLOW/UNDERFLOW ERRORS, THESE VALUES HAVE BEEN SET TO NAN')
 
-            dataarr = tempdata
-        
+            axis_count = 2; #One axis for flux, one for wavelength
+
+            dataarr = np.reshape(tempdata, (axis_count, len(tempdata)/axis_count))
+
         #Make an HDU object to contain header/data
         hdu = fits.PrimaryHDU(dataarr)
         
@@ -299,7 +301,7 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
         sparam[sparam.index('SILTOTABUN')] = 'SILTOTAB'
         sparam[sparam.index('FORSTERITE_FRAC')] = 'FORSTERI'
         sparam[sparam.index('ENSTATITE_FRAC')] = 'ENSTATIT'
-        
+    
         #Reduce the amount of Spanish here
         sparam[sparam.index('DISTANCIA')] = 'DISTANCE'
 
@@ -415,8 +417,8 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
                 noscatt = 1
                 failed = True
                 miss = 1
-
-            if miss != 1 and size !=0:
+ 
+            if miss != 1 and size > 100:
                 scatt = ascii.read(scattfile[0], data_start = 1)
                 axis['SCATAXIS'] = axis_count
                     #If the photosphere, wall and disk were not run, then grab wavelength information from scatt file
@@ -426,7 +428,7 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
                 dataarr = np.concatenate((dataarr, scatt['col4']))
                 axis_count += 1
                 
-            elif miss != 1 and size == 0:
+            elif miss != 1 and size == 0 or miss != 1 and size < 100:
                 print("WARNING: JOB "+jobnum+" SCATT FILE EMPTY, ADDED 'FAILED' TAG TO HEADER. NOSCATT SET TO 1")
                 failed = True
                 noscatt = 1
@@ -449,10 +451,11 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
 
 
 
-        #If data has values that overflow/underflow float type, replace them with NaN
+        #if data has values that overflow/underflow float type, replace them with NaN dataarr = tempdata
 
         tempdata = np.zeros(len(dataarr))
         floaterr = 0 
+
 
         for i, value in enumerate(dataarr):
             try:
@@ -466,10 +469,8 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
 
         dataarr = tempdata
 
-
         #Put data array into the standard form for EDGE
         dataarr = np.reshape(dataarr, (axis_count, len(dataarr)/axis_count))
-
 
         if noextinct == 0:
             if nophot == 0:
@@ -480,6 +481,10 @@ def collate(path, jobnum, name, destination, optthin=0, clob=0, high=0, noextinc
 
         #Create the header and add parameters
         hdu = fits.PrimaryHDU(dataarr)
+
+        #Add a few misc tags to the header
+        hdu.header.set('OBJNAME', name)
+        hdu.header.set('JOBNUM', jobnum)
         
         for i, param in enumerate(sparam):
             hdu.header.set(param, dparam[i])
