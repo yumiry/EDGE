@@ -1197,6 +1197,8 @@ class TTS_Model(object):
         # Add the components to the total flux, checking each component along the way:
         totFlux         = np.zeros(len(self.data['wl']), dtype=float)
         componentNumber = 1
+        scatt           = 0     # For tracking if scattered light component exists
+        
         if self.extcorr != None:
             componentNumber += 1
         if phot:
