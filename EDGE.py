@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Created by Dan Feldman and Connor Robinson for analyzing data from Espaillat Group research models.
-# Last updated: 8/13/15 by Dan
+# Last updated: 8/18/15 by Dan
 
 #-------------------------------------------IMPORT RELEVANT MODELS-------------------------------------------
 import numpy as np
@@ -26,8 +26,8 @@ plt.rc('figure', autolayout=True)
 # Folders where model output data and observational data can be found:
 edgepath        = '/Users/danfeldman/Python_Code/EDGE/'
 datapath        = '/Users/danfeldman/Orion_Research/Orion_Research/CVSO_4Objs/Models/CVSO109PT2/'
-figurepath      = '/Users/danfeldman/Orion_Research/Orion_Research/CVSO_4Objs/Look_SEDs/CVSO107/'
-#figurepath      = '/Users/danfeldman/Orion_Research/Orion_Research/CVSO_4Objs/Models/Full_CVSO_Grid/CVSO58_sil/'
+#figurepath      = '/Users/danfeldman/Orion_Research/Orion_Research/CVSO_4Objs/Look_SEDs/CVSO107/'
+figurepath      = '/Users/danfeldman/Orion_Research/Orion_Research/CVSO_4Objs/Models/Full_CVSO_Grid/CVSO58_sil/'
 
 #---------------------------------------------INDEPENDENT FUNCTIONS----------------------------------------------
 # A function is considered independent if it does not reference any other function or class in this module.
@@ -361,11 +361,18 @@ def look(obs, model=None, jobn=None, save=0, savepath=figurepath, colkeys=None, 
         modkeys         = model.data.keys()
         if 'phot' in modkeys:
             plt.plot(model.data['wl'], model.data['phot'], ls='--', c='b', linewidth=2.0, label='Photosphere')
-        try:
-            plt.plot(model.data['wl'], model.newIWall, ls='--', c='#53EB3B', linewidth=2.0, label='Inner Wall')
-        except AttributeError:
-            if 'iwall' in modkeys:
-                plt.plot(model.data['wl'], model.data['iwall'], ls='--', c='#53EB3B', linewidth=2.0, label='Inner Wall')
+        if 'owall' in modkeys:
+            try:
+                plt.plot(model.data['wl'], model.newIWall, ls='--', c='#53EB3B', linewidth=2.0, label='Inner Wall')
+            except AttributeError:
+                if 'iwall' in modkeys:
+                    plt.plot(model.data['wl'], model.data['iwall'], ls='--', c='#53EB3B', linewidth=2.0, label='Inner Wall')
+        else:
+            try:
+                plt.plot(model.data['wl'], model.newIWall, ls='--', c='#53EB3B', linewidth=2.0, label='Wall')
+            except AttributeError:
+                if 'iwall' in modkeys:
+                    plt.plot(model.data['wl'], model.data['iwall'], ls='--', c='#53EB3B', linewidth=2.0, label='Wall')
         if diskcomb:
             try:
                 diskflux     = model.newOwall + model.data['disk']
