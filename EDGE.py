@@ -591,6 +591,10 @@ def job_file_create(jobnum, path, high=0, iwall=0, **kwargs):
         labelend - the labelend of all output files when job file is run
         temp - the temperature of the inner wall
         altinh - the height of the inner wall in scale heights
+        fracolive - the fractional abundance of amorphous olivine
+        fracpyrox - the fractional abundance of amorphous pyroxene
+        fracforst - the fractional abundance of crystalline forsterite
+        fracent - the fractional abundance of crystalline enstatite
         
         Some can still be included, such as dust grain compositions. They just aren't
         currently supported. If any supplied kwargs are unused, it will print at the end.
@@ -802,6 +806,22 @@ def job_file_create(jobnum, path, high=0, iwall=0, **kwargs):
         altVal = kwargs['altinh']
         del kwargs['altinh']
         fullText[30] = fullText[30][:11] + str(altVal) + fullText[30][-24:]
+    if 'fracolive' in kwargs:                       # Fractional abundance of olivine
+        olivVal = kwargs['fracolive']
+        del kwargs['fracolive']
+        fullText[125] = fullText[125][:23] + str(olivVal) + fullText[125][26:]
+    if 'fracpyrox' in kwargs:                       # Fractional abundance of pyroxene
+        pyroVal = kwargs['fracpyrox']
+        del kwargs['fracpyrox']
+        fullText[126] = fullText[126][:24] + str(pyroVal) + fullText[126][27:]
+    if 'fracforst' in kwargs:                       # Fractional abundance of forsterite
+        forstVal = kwargs['fracforst']
+        del kwargs['fracforst']
+        fullText[127] = fullText[127][:21] + str(forstVal) + fullText[127][24:]
+    if 'fracent' in kwargs:                         # Fractional abundance of enstatite
+        enstVal = kwargs['fracent']
+        del kwargs['fracent']
+        fullText[128] = fullText[128][:20] + str(enstVal) + fullText[128][23:]
     if iwall:
         # If an inner wall job is desired, turn off all but isilcom and iwalldust:
         fullText[153] = fullText[153][:-3] + '0' + fullText[153][-2:]   # IPHOT
