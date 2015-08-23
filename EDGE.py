@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 # Created by Dan Feldman and Connor Robinson for analyzing data from Espaillat Group research models.
-# Last updated: 8/13/15 by Dan
+# Last updated: 8/18/15 by Dan
 
 #-------------------------------------------IMPORT RELEVANT MODELS-------------------------------------------
 import numpy as np
 import matplotlib.pyplot as plt
 #from astropy.io import ascii
 from astropy.io import fits
+import scipy.interpolate as sinterp
 #from matplotlib.backends.backend_pdf import PdfPages
 import os
 import math
@@ -26,8 +27,8 @@ plt.rc('figure', autolayout=True)
 # Folders where model output data and observational data can be found:
 edgepath        = '/Users/danfeldman/Python_Code/EDGE/'
 datapath        = '/Users/danfeldman/Orion_Research/Orion_Research/CVSO_4Objs/Models/CVSO109PT2/'
-figurepath      = '/Users/danfeldman/Orion_Research/Orion_Research/CVSO_4Objs/Look_SEDs/CVSO107/'
-#figurepath      = '/Users/danfeldman/Orion_Research/Orion_Research/CVSO_4Objs/Models/Full_CVSO_Grid/CVSO58_sil/'
+#figurepath      = '/Users/danfeldman/Orion_Research/Orion_Research/CVSO_4Objs/Look_SEDs/CVSO107/'
+figurepath      = '/Users/danfeldman/Orion_Research/Orion_Research/CVSO_4Objs/Models/Full_CVSO_Grid/CVSO58_sil/'
 
 #---------------------------------------------INDEPENDENT FUNCTIONS----------------------------------------------
 # A function is considered independent if it does not reference any other function or class in this module.
@@ -299,6 +300,47 @@ def numCheck(num, high=0):
         numstr          = '%03d' % num
     return numstr
 
+def convertSptype(spT):
+    """
+    Converts a spectral type into its numerical equivalent, based on Alice Perez's conversion table.
+    
+    INPUT
+    spT: The spectral type. Examples include 'A4', 'F3.5', and 'M2.1'. Must be a string.
+    
+    OUTPUT
+    spT_float: The spectral type as a float value. See the README file at 
+               https://github.com/yumiry/Teff_Lum for more details on the conversion.
+    """
+    
+    if type(spT) != str:
+        raise ValueError('CONVERTSPTYPE: Spectral type must be a string!')
+    
+    # Pull out the numerical value in spT, e.g., the 5 in 'M5':
+    try:
+        sub_val = float(spT[1:])
+    except ValueError:
+        raise ValueError('CONVERTSPTYPE: Spectral type not in correct format! Fix the numerical part.')
+    
+    # Now, use the first value (e.g., M in 'M5') and the above numerical value to convert to float:
+    if spT[0] == 'B':
+        spT_float = 20.0 + sub_val
+    elif spT[0] == 'A':
+        spT_float = 30.0 + sub_val
+    elif spT[0] == 'F':
+        spT_float = 40.0 + sub_val
+    elif spT[0] == 'G':
+        spT_float = 50.0 + sub_val
+    elif spT[0] == 'K':
+        spT_float = 60.0 + sub_val
+        if sub_val > 7.0:
+            print('WARNING: Spectral type is greater than K7 but less than M0...not physical.')
+    elif spT[0] == 'M':
+        spT_float = 68.0 + sub_val
+    else:
+        raise ValueError('CONVERTSPTYPE: Spectral type not in correct format! Fix the spectral class.')
+    
+    return spT_float
+
 #----------------------------------------------DEPENDENT FUNCTIONS-----------------------------------------------
 # A function is considered dependent if it utilizes either the above independent functions, or the classes below.
 def look(obs, model=None, jobn=None, save=0, savepath=figurepath, colkeys=None, diskcomb=0, xlim=[2e-1, 2e3], ylim=[1e-15, 1e-9]):
@@ -361,11 +403,18 @@ def look(obs, model=None, jobn=None, save=0, savepath=figurepath, colkeys=None, 
         modkeys         = model.data.keys()
         if 'phot' in modkeys:
             plt.plot(model.data['wl'], model.data['phot'], ls='--', c='b', linewidth=2.0, label='Photosphere')
-        try:
-            plt.plot(model.data['wl'], model.newIWall, ls='--', c='#53EB3B', linewidth=2.0, label='Inner Wall')
-        except AttributeError:
-            if 'iwall' in modkeys:
-                plt.plot(model.data['wl'], model.data['iwall'], ls='--', c='#53EB3B', linewidth=2.0, label='Inner Wall')
+        if 'owall' in modkeys:
+            try:
+                plt.plot(model.data['wl'], model.newIWall, ls='--', c='#53EB3B', linewidth=2.0, label='Inner Wall')
+            except AttributeError:
+                if 'iwall' in modkeys:
+                    plt.plot(model.data['wl'], model.data['iwall'], ls='--', c='#53EB3B', linewidth=2.0, label='Inner Wall')
+        else:
+            try:
+                plt.plot(model.data['wl'], model.newIWall, ls='--', c='#53EB3B', linewidth=2.0, label='Wall')
+            except AttributeError:
+                if 'iwall' in modkeys:
+                    plt.plot(model.data['wl'], model.data['iwall'], ls='--', c='#53EB3B', linewidth=2.0, label='Wall')
         if diskcomb:
             try:
                 diskflux     = model.newOwall + model.data['disk']
@@ -542,6 +591,10 @@ def job_file_create(jobnum, path, high=0, iwall=0, **kwargs):
         labelend - the labelend of all output files when job file is run
         temp - the temperature of the inner wall
         altinh - the height of the inner wall in scale heights
+        fracolive - the fractional abundance of amorphous olivine
+        fracpyrox - the fractional abundance of amorphous pyroxene
+        fracforst - the fractional abundance of crystalline forsterite
+        fracent - the fractional abundance of crystalline enstatite
         
         Some can still be included, such as dust grain compositions. They just aren't
         currently supported. If any supplied kwargs are unused, it will print at the end.
@@ -753,6 +806,22 @@ def job_file_create(jobnum, path, high=0, iwall=0, **kwargs):
         altVal = kwargs['altinh']
         del kwargs['altinh']
         fullText[30] = fullText[30][:11] + str(altVal) + fullText[30][-24:]
+    if 'fracolive' in kwargs:                       # Fractional abundance of olivine
+        olivVal = kwargs['fracolive']
+        del kwargs['fracolive']
+        fullText[125] = fullText[125][:23] + str(olivVal) + fullText[125][26:]
+    if 'fracpyrox' in kwargs:                       # Fractional abundance of pyroxene
+        pyroVal = kwargs['fracpyrox']
+        del kwargs['fracpyrox']
+        fullText[126] = fullText[126][:24] + str(pyroVal) + fullText[126][27:]
+    if 'fracforst' in kwargs:                       # Fractional abundance of forsterite
+        forstVal = kwargs['fracforst']
+        del kwargs['fracforst']
+        fullText[127] = fullText[127][:21] + str(forstVal) + fullText[127][24:]
+    if 'fracent' in kwargs:                         # Fractional abundance of enstatite
+        enstVal = kwargs['fracent']
+        del kwargs['fracent']
+        fullText[128] = fullText[128][:20] + str(enstVal) + fullText[128][23:]
     if iwall:
         # If an inner wall job is desired, turn off all but isilcom and iwalldust:
         fullText[153] = fullText[153][:-3] + '0' + fullText[153][-2:]   # IPHOT
@@ -1027,6 +1096,67 @@ def model_rchi2(objname, model, path):
     
     return rchi_sq
 
+def star_param(sptype, mag, Av, dist, params, picklepath=edgepath, jnotv=0):
+    """
+    Calculates the effective temperature and luminosity of a T-Tauri star. Uses either values based on
+    Kenyon and Hartmann 1995, or Pecault and Mamajet (source?). This function is based on code written
+    by Alice Perez at CIDA.
+    
+    INPUTS
+    sptype: The spectral type of your object. Can be either a float value, or an alphanumeric representation.
+    mag: The magnitude used for correction. Must be either V band or J band.
+    Av: The extinction in the V band.
+    dist: The distance to your object in parsecs.
+    params: Must be either 'KH' (for Kenyon & Hartmann) or 'PM' (for Pecault and Mamajet)
+    picklepath: Where the star_param.pkl file is located. Default is hardcoded for where EDGE.py is located.
+    jnotv: BOOLEAN -- if True (1), it sets 'mag' input to be J band magnitude rather than V band.
+    
+    OUTPUTS
+    Teff: The calculated effective temperature of the star (in Kelvin).
+    lum: The calculated luminosity of the star in solar luminosities (L / Lsun).
+    """
+    
+    # First, we need to load in the pickle containing the conversions:
+    stparam_pick = open(picklepath + 'star_param.pkl', 'rb')
+    stparam_dict = cPickle.load(stparam_pick)
+    stparam_pick.close()
+    
+    # Next, create relevant interpolation grids based on desired params:
+    # If the spectral type is not a number, we'll need to convert!
+    if type(sptype) == float or type(sptype) == int:
+        pass
+    else:
+        sptype = convertSptype(sptype)
+    
+    if params == 'KH':
+        print('STAR_PARAM: Will be using Kenyon & Hartmann values.')
+        tempSpline = sinterp.UnivariateSpline(stparam_dict['KH']['SpType'], stparam_dict['KH']['Teff'], s=0)
+        boloSpline = sinterp.UnivariateSpline(stparam_dict['KH']['SpType'], stparam_dict['KH']['BC'], s=0)
+    elif params == 'PM':
+        print('STAR_PARAM: Will be using Pecaut and Mamajet values.')
+        tempSpline = sinterp.UnivariateSpline(stparam_dict['PM']['SpType'], stparam_dict['PM']['Teff'], s=0)
+        boloSpline = sinterp.UnivariateSpline(stparam_dict['PM']['SpType'], stparam_dict['PM']['BC'], s=0)
+    else:
+        raise IOError('STAR_PARAM: Did not enter a valid input for params!')
+    
+    # Calculate the effective temperature:
+    Teff  = tempSpline(sptype)
+    # Error calculation? Do we need to use log base 10?
+    
+    # Calculate the luminosity utilizing bolometric correction and distance modulus:
+    BCorr = boloSpline(sptype)
+    
+    # Check if we have a J mag instead of a V mag:
+    if jnotv:
+        Mj   = mag + 5 - (5*np.log10(dist)) - 0.29*Av       # Aj/Av = 0.29 (Cardelli, Clayton and Mathis 1989)
+        Mbol = Mj + BCorr
+    else:
+        Mv   = mag + 5 - (5*np.log10(dist)) - Av
+        Mbol = Mv + BCorr
+    lum = 10.0 ** ((-Mbol+4.74) / 2.5)
+    
+    return float(Teff), lum
+
 #---------------------------------------------------CLASSES------------------------------------------------------
 class TTS_Model(object):
     """
@@ -1197,6 +1327,8 @@ class TTS_Model(object):
         # Add the components to the total flux, checking each component along the way:
         totFlux         = np.zeros(len(self.data['wl']), dtype=float)
         componentNumber = 1
+        scatt           = 0     # For tracking if scattered light component exists
+        
         if self.extcorr != None:
             componentNumber += 1
         if phot:
